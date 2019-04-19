@@ -1,4 +1,5 @@
 import sys
+import copy
 
 BOARD = set()
 for i in range(-3,1):
@@ -12,6 +13,7 @@ COLOUR_LIST = ['red', 'green', 'blue']
 
 def main():
     player = Player('red')
+    player.update('red', ('MOVE', ((-3,3),(-2,3))))
 
 class Player:
     def __init__(self, colour):
@@ -26,16 +28,7 @@ class Player:
         strings "red", "green", or "blue" correspondingly.
         """
         # TODO: Set up state representation.
-        ind = COLOUR_LIST.index(colour)
-        self.colour = 0
-        self.colour_dic = {'red': (ind) % 3,
-            'green': (ind + 1) % 3, 'blue': (ind + 2) % 3}
-        self.period = 0
-        self.turn = self.colour_dic['red']
-        self.score = {0: [4, 0], 1: [4, 0], 2: [4, 0]}
-        self.state = []
-        self.neighbours = {}
-        self.initial_state()
+        self.features = Features(colour)
 
     def action(self):
         """
@@ -70,31 +63,48 @@ class Player:
         (or pass) for the player colour (your method does not need to validate
         the action/pass against the game rules).
         """
-        curr_colour = self.colour_dic[colour]
-        change = action[1]
-        if action[0] == "MOVE":
-            self.state[curr_colour].remove(change[0])
-            self.state[curr_colour].add(change[1])
-        elif action[0] == "JUMP":
-            self.state[curr_colour].remove(change[0])
-            self.state[curr_colour].add(change[1])
-            middle_piece = ((change[0][0] + change[1][0])/2,
-                (change[0][1] + change[1][1])/2)
-            self.state[curr_colour].add(middle_piece)
-            self.score[curr_colour][0] += 1
-            for i in [1,2]:
-                if middle_piece in self.state[curr_colour + i]:
-                    self.state[curr_colour + i].remove(middle_piece)
-                    self.score[curr_colour + i][0] -= 1
-        elif action[0] == 'EXIT':
-            self.state[curr_colour].remove(change)
-            self.score[curr_colour][0] -= 1
-            self.score[curr_colour][1] += 1
-        self.update_neighbours()
-        self.turn += 1
+        self.features = self.features.update(self.features.colour_dic['colour'], action)
         # TODO: Update state representation in response to action.
 
-    def initial_state(self):
+class Features:
+    def __init__(self, colour):
+        ind = COLOUR_LIST.index(colour)
+        self.colour = 0
+        self.colour_dic = {'red': (ind) % 3,
+            'green': (ind + 1) % 3, 'blue': (ind + 2) % 3}
+        self.period = 0
+        self.turn = self.colour_dic['red']
+        self.score = {0: [4, 0], 1: [4, 0], 2: [4, 0]}
+        self.state = []
+        self.neighbours = {}
+        self.initial_state()
+
+    def update(self, colour, action):
+        new = copy.deepcopy(self)
+        change = action[1]
+        if action[0] == "MOVE":
+            new.state[colour].remove(change[0])
+            new.state[colour].add(change[1])
+        elif action[0] == "JUMP":
+            new.state[colour].remove(change[0])
+            new.state[colour].add(change[1])
+            middle_piece = ((change[0][0] + change[1][0])/2,
+                (change[0][1] + change[1][1])/2)
+            new.state[colour].add(middle_piece)
+            new.score[colour][0] += 1
+            for i in [1,2]:
+                if middle_piece in new.state[curr_colour + i]:
+                    new.state[colour + i].remove(middle_piece)
+                    new.score[colour + i][0] -= 1
+        elif action[0] == 'EXIT':
+            new.state[colour].remove(change)
+            new.score[colour][0] -= 1
+            new.score[colour][1] += 1
+        new.update_neighbours()
+        new.turn += 1
+        return new
+
+    def initial_state(new):
         self.state = {
             self.colour_dic['red']: {(-3, 0), (-3, 1), (-3, 2), (-3, 3)},
             self.colour_dic['green']: {(0, -3), (1, -3), (2, -3), (3, -3)},
@@ -110,11 +120,26 @@ class Player:
                 new_jump = (new[0] + i, new[1] + j)
                 if new in BOARD:
                     if new not in occupied:
-                        self.neighbours[piece].add(new)
+                        self.neighbours[piece].add(("MOVE", new))
                     elif new_jump in BOARD and new_jump not in occupied:
-                        self.neighbours[piece].add(new_jump)
+                        self.neighbours[piece].add(("JUMP", new_jump))
 
-class
+class Search_Node:
+    def __init__(self, features):
+        self.features = features
+
+    def get_children(self, colour):
+        None
+
+class MaxN_Tree:
+    def __init__(self, player):
+        self.root = Search_Node(player.features)
+
+    def MaxN(self, depth):
+
+
+class Evaluation_Function:
+    None
 
 if __name__ == '__main__':
     main()
