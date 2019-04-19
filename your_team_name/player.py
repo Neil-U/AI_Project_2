@@ -1,6 +1,6 @@
 
 class ExamplePlayer:
-    def __init__(self, colour): 
+    def __init__(self, colour):
         """
         This method is called once at the beginning of the game to initialise
         your player. You should use this opportunity to set up your own internal
@@ -12,7 +12,15 @@ class ExamplePlayer:
         strings "red", "green", or "blue" correspondingly.
         """
         # TODO: Set up state representation.
-
+        colour_dic = {'red': 0, 'green': 1, 'blue': 2}
+        self.colour = colour_dic[colour]
+        self.period = 0
+        self.n_piece = 4
+        self.state = [{(-3, 0), (-3, 1), (-3, 2), (-3, 3)}, {(0, -3), (1, -3)
+        (2, -3), (3, -3)}, {(3, 0), (2, 1), (1, 2), (0, 3)}]
+        state.neighbours = []
+        for piece in self.state[self.colour]:
+            possible            
 
     def action(self):
         """
