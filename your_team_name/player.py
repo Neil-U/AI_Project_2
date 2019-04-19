@@ -81,12 +81,15 @@ class Player:
             middle_piece = ((change[0][0] + change[1][0])/2,
                 (change[0][1] + change[1][1])/2)
             self.state[curr_colour].add(middle_piece)
-            self.score[curr_colour]
+            self.score[curr_colour][0] += 1
             for i in [1,2]:
                 if middle_piece in self.state[curr_colour + i]:
                     self.state[curr_colour + i].remove(middle_piece)
+                    self.score[curr_colour + i][0] -= 1
         elif action[0] == 'EXIT':
             self.state[curr_colour].remove(change)
+            self.score[curr_colour][0] -= 1
+            self.score[curr_colour][1] += 1
         self.update_neighbours()
         self.turn += 1
         # TODO: Update state representation in response to action.
