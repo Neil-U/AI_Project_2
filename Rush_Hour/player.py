@@ -12,6 +12,10 @@ for i in range(1,4):
 
 MIN_DEPTH = 2
 
+def main():
+    player = Player("red")
+    print(player.action())
+
 class Player:
     def __init__(self, colour):
         """
@@ -38,9 +42,9 @@ class Player:
         must be represented based on the above instructions for representing
         actions.
         """
-        # TODO: Decide what action to take
+        # TODO: Decide what action to take.
+        curr_state = Search_Node(self.features)
         return curr_state.MaxN(self.features.colour, 0)[0]
-
 
     def update(self, colour, action):
         """
@@ -71,34 +75,31 @@ class Features:
         self.colour = self.colour_dic[colour]
         self.period = 0
         self.score = {0: [4, 0], 1: [4, 0], 2: [4, 0]}
-        self.goal = {0: {(3,-3), (3,-2), (3,-1), (3,0)},
-            2: {(0,-3), (-1,-2), (-2,-1), (-3,0)},
-            1: {(-3,3), (-2,3), (-1,3), (0,3)}}[self.colour_dic[colour]]
+        self.goal = {}
         self.state = []
-        self.poss_moves = []
         self.initial_state()
 
-    def update(self, colour, action):
+    def update(self, turn, action):
         new = copy.deepcopy(self)
         change = action[1]
         if action[0] == "MOVE":
-            new.state[colour].remove(change[0])
-            new.state[colour].add(change[1])
+            new.state[turn].remove(change[0])
+            new.state[turn].add(change[1])
         elif action[0] == "JUMP":
-            new.state[colour].remove(change[0])
-            new.state[colour].add(change[1])
+            new.state[turn].remove(change[0])
+            new.state[turn].add(change[1])
             middle_piece = ((change[0][0] + change[1][0])/2,
                 (change[0][1] + change[1][1])/2)
-            new.state[colour].add(middle_piece)
-            new.score[colour][0] += 1
+            new.state[turn].add(middle_piece)
+            new.score[turn][0] += 1
             for i in [1,2]:
-                if middle_piece in new.state[curr_colour + i]:
-                    new.state[colour + i].remove(middle_piece)
-                    new.score[colour + i][0] -= 1
+                if middle_piece in new.state[(turn + i) % 3]:
+                    new.state[(turn + i) % 3].remove(middle_piece)
+                    new.score[(turn + i) % 3][0] -= 1
         elif action[0] == 'EXIT':
-            new.state[colour].remove(change)
-            new.score[colour][0] -= 1
-            new.score[colour][1] += 1
+            new.state[turn].remove(change)
+            new.score[turn][0] -= 1
+            new.score[turn][1] += 1
         new.turn = (new.turn + 1) % 3
         new.update_poss_moves()
         return new
@@ -112,6 +113,7 @@ class Features:
 
     def update_poss_moves(self):
         self.poss_moves = []
+        self.goal = {0: {(3,-3), (3,-2), (3,-1), (3,0)}, 2: {(0,-3), (-1,-2), (-2,-1), (-3,0)}, 1: {(-3,3), (-2,3), (-1,3), (0,3)}}[self.turn]
         occupied = set().union(*self.state.values())
         for piece in self.state[self.turn]:
             if piece in self.goal:
@@ -144,10 +146,12 @@ class Search_Node:
         ev = Evaluation_Function(turn)
         if depth < MIN_DEPTH:
             for move, future in [(move, child.MaxN((turn + 1) % 3, depth + 1)[-1]) for move, child in self.get_children()]:
-                board_list.append((ev.random(future), (move, future)))
+                board_list.append((ev.euclid(move, future), (move, future)))
             return max(board_list)[-1]
         for move, child in self.get_children():
-            board_list.append((ev.random(child), (move, child)))
+            if not self.get_children():
+                print('a')
+            board_list.append((ev.euclid(move, child), (move, child)))
         return max(board_list)[-1]
 
 class MaxN_Tree:
@@ -164,3 +168,17 @@ class Evaluation_Function:
         elif (state.features.score[(state.features.turn + 1) % 3][1] == 4) or (state.features.score[(state.features.turn + 2) % 3][1] == 4):
             return 0
         return random.randint(1, 100)
+
+    def euclid(self, move, state):
+        dist = 0
+        if move[0] == 'PASS':
+            return -100
+        if move[0] == 'EXIT':
+            return 0
+        curr = move[1][0]
+        for i in list(state.features.goal):
+            dist += (i[0] - curr[0])**2 + (i[1] - curr[1])**2
+        return -dist
+
+if __name__ == "__main__":
+    main()
