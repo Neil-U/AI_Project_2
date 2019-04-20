@@ -1,1 +1,1 @@
-from your_team_name.player import Player as Player
+from Rush_Hour.player import Player as Player
