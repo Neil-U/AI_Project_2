@@ -10,6 +10,7 @@ for i in range(1,4):
     for j in range(-3,4-i):
         BOARD.add((i,j))
 
+COLOUR_DIC = {'red': 0, 'green': 1, 'blue': 2}
 MIN_DEPTH = 2
 
 def main():
@@ -18,167 +19,177 @@ def main():
 
 class Player:
     def __init__(self, colour):
-        """
-        This method is called once at the beginning of the game to initialise
-        your player. You should use this opportunity to set up your own internal
-        representation of the game state, and any other information about the
-        game state you would like to maintain for the duration of the game.
-
-        The parameter colour will be a string representing the player your
-        program will play as (Red, Green or Blue). The value will be one of the
-        strings "red", "green", or "blue" correspondingly.
-        """
-        # TODO: Set up state representation.
-        self.features = Features(colour)
+        self.features = Features(COLOUR_DIC['red'])
 
     def action(self):
-        """
-        This method is called at the beginning of each of your turns to request
-        a choice of action from your program.
-
-        Based on the current state of the game, your player should select and
-        return an allowed action to play on this turn. If there are no allowed
-        actions, your player must return a pass instead. The action (or pass)
-        must be represented based on the above instructions for representing
-        actions.
-        """
-        # TODO: Decide what action to take.
-        curr_state = Search_Node(self.features)
-        return curr_state.MaxN(self.features.colour, 0)[0]
+        if not self.features.state[self.features.colour]:
+            return ("PASS", None)
+        functions = Evaluation_Function()
+        # state = Search_Node(self.features)
+        # print(functions.euclid(state))
+        maxn = Minimax(self.features, functions)
+        return maxn.find()
 
     def update(self, colour, action):
-        """
-        This method is called at the end of every turn (including your player’s
-        turns) to inform your player about the most recent action. You should
-        use this opportunity to maintain your internal representation of the
-        game state and any other information about the game you are storing.
-
-        The parameter colour will be a string representing the player whose turn
-        it is (Red, Green or Blue). The value will be one of the strings "red",
-        "green", or "blue" correspondingly.
-
-        The parameter action is a representation of the most recent action (or
-        pass) conforming to the above in- structions for representing actions.
-
-        You may assume that action will always correspond to an allowed action
-        (or pass) for the player colour (your method does not need to validate
-        the action/pass against the game rules).
-        """
-        self.features = self.features.update(self.features.colour_dic[colour], action)
-        # TODO: Update state representation in response to action.
+        self.features = self.features.update(COLOUR_DIC[colour], action)
+        print(self.features.state)
 
 class Features:
     def __init__(self, colour):
-        self.colour_dic = {'red': 0,
-            'green': 1, 'blue': 2}
-        self.turn = 0
-        self.colour = self.colour_dic[colour]
+        self.colour = colour
         self.period = 0
         self.score = {0: [4, 0], 1: [4, 0], 2: [4, 0]}
-        self.goal = {}
-        self.state = []
-        self.initial_state()
-
-    def update(self, turn, action):
-        new = copy.deepcopy(self)
-        change = action[1]
-        if action[0] == "MOVE":
-            new.state[turn].remove(change[0])
-            new.state[turn].add(change[1])
-        elif action[0] == "JUMP":
-            new.state[turn].remove(change[0])
-            new.state[turn].add(change[1])
-            middle_piece = ((change[0][0] + change[1][0])/2,
-                (change[0][1] + change[1][1])/2)
-            new.state[turn].add(middle_piece)
-            new.score[turn][0] += 1
-            for i in [1,2]:
-                if middle_piece in new.state[(turn + i) % 3]:
-                    new.state[(turn + i) % 3].remove(middle_piece)
-                    new.score[(turn + i) % 3][0] -= 1
-        elif action[0] == 'EXIT':
-            new.state[turn].remove(change)
-            new.score[turn][0] -= 1
-            new.score[turn][1] += 1
-        new.turn = (new.turn + 1) % 3
-        new.update_poss_moves()
-        return new
-
-    def initial_state(self):
         self.state = {
             0: {(-3, 0), (-3, 1), (-3, 2), (-3, 3)},
             1: {(0, -3), (1, -3), (2, -3), (3, -3)},
             2: {(3, 0), (2, 1), (1, 2), (0, 3)}}
-        self.update_poss_moves()
 
-    def update_poss_moves(self):
-        self.poss_moves = []
-        self.goal = {0: {(3,-3), (3,-2), (3,-1), (3,0)}, 2: {(0,-3), (-1,-2), (-2,-1), (-3,0)}, 1: {(-3,3), (-2,3), (-1,3), (0,3)}}[self.turn]
-        occupied = set().union(*self.state.values())
-        for piece in self.state[self.turn]:
+    def update(self, colour, action):
+        new = copy.deepcopy(self)
+        new.colour = (colour + 1) %3
+        change = action[1]
+
+        if action[0] == "MOVE":
+            new.state[colour].remove(change[0])
+            new.state[colour].add(change[1])
+
+        elif action[0] == "JUMP":
+            new.state[colour].remove(change[0])
+            new.state[colour].add(change[1])
+            middle_piece = ((change[0][0] + change[1][0])/2,
+                (change[0][1] + change[1][1])/2)
+            new.state[colour].add(middle_piece)
+            new.score[colour][0] += 1
+            for i in [1,2]:
+                if middle_piece in new.state[(colour + i) % 3]:
+                    new.state[(colour + i) % 3].remove(middle_piece)
+                    new.score[(colour + i) % 3][0] -= 1
+
+        elif action[0] == 'EXIT':
+            new.state[colour].remove(change)
+            new.score[colour][0] -= 1
+            new.score[colour][1] += 1
+
+        return new
+
+class Search_Node:
+    def __init__(self, features, parent = None, move = None):
+        self.features = features
+        self.parent = parent
+        self.children = []
+        self.move = move
+        self.goal = {}
+        self.update_goal()
+
+    def poss_moves(self):
+        poss_moves = []
+        occupied = set().union(*self.features.state.values())
+
+        for piece in self.features.state[self.features.colour]:
             if piece in self.goal:
-                self.poss_moves.append(("EXIT", piece))
+                poss_moves.append(("EXIT", piece))
                 continue
+
             for i,j in [(-1,0),(-1,1), (0,-1), (0,1), (1,0), (1,-1)]:
                 new = (piece[0]+i,piece[1]+j)
                 new_jump = (new[0] + i, new[1] + j)
+
                 if new in BOARD:
                     if new not in occupied:
-                        self.poss_moves.append(("MOVE", (piece, new)))
+                        poss_moves.append(("MOVE", (piece, new)))
                     elif new_jump in BOARD and new_jump not in occupied:
-                        self.poss_moves.append(("JUMP", (piece, new_jump)))
-            if not self.poss_moves:
-                self.poss_moves.append(("PASS", None))
+                        poss_moves.append(("JUMP", (piece, new_jump)))
 
+            if not poss_moves:
+                poss_moves.append(("PASS", None))
 
-class Search_Node:
-    def __init__(self, features):
-        self.features = features
+        return poss_moves
 
     def get_children(self):
-        children = []
-        for move in self.features.poss_moves:
-            children.append((move, Search_Node(self.features.update(self.features.turn, move))))
-        return children
+        for move in self.poss_moves():
+            self.children.append(Search_Node(self.features.update(self.features.colour, move), self, move))
 
-    def MaxN(self, turn, depth):
-        board_list = []
-        ev = Evaluation_Function(turn)
-        if depth < MIN_DEPTH:
-            for move, future in [(move, child.MaxN((turn + 1) % 3, depth + 1)[-1]) for move, child in self.get_children()]:
-                board_list.append((ev.euclid(move, future), (move, future)))
-            return max(board_list)[-1]
-        for move, child in self.get_children():
-            if not self.get_children():
-                print('a')
-            board_list.append((ev.euclid(move, child), (move, child)))
-        return max(board_list)[-1]
-
-class MaxN_Tree:
-    def __init__(self, player):
-        self.root = Search_Node(player.features)
+    def update_goal(self):
+        self.goal = {
+            0: {(3,-3), (3,-2), (3,-1), (3,0)},
+            1: {(-3,3), (-2,3), (-1,3), (0,3)},
+            2: {(0,-3), (-1,-2), (-2,-1), (-3,0)}}[self.features.colour]
 
 class Evaluation_Function:
-    def __init__(self, turn):
-        self.turn = turn
+    def __init__(self):
+        return
+
+    def is_terminal(self, state):
+        for piece in state.features.state:
+            if piece in state.goal:
+                return piece
+        return False
 
     def random(self, state):
-        if state.features.score[state.features.turn][1] == 4:
+        if state.features.score[state.features.colour][1] == 4:
             return 120
-        elif (state.features.score[(state.features.turn + 1) % 3][1] == 4) or (state.features.score[(state.features.turn + 2) % 3][1] == 4):
+        elif (state.features.score[(state.features.colour + 1) % 3][1] == 4) or (state.features.score[(state.features.colour + 2) % 3][1] == 4):
             return 0
         return random.randint(1, 100)
 
-    def euclid(self, move, state):
+    def euclid(self, state):
         dist = 0
-        if move[0] == 'PASS':
-            return -100
-        if move[0] == 'EXIT':
-            return 0
-        curr = move[1][0]
-        for i in list(state.features.goal):
-            dist += (i[0] - curr[0])**2 + (i[1] - curr[1])**2
+        for j in list(state.features.state[state.features.colour]):
+            for i in list(state.goal):
+                dist += (i[0] - j[0])**2 + (i[1] - j[1])**2
         return -dist
+
+class Minimax:
+    def __init__(self, features, functions, max_depth=1):
+        self.features = features
+        self.max_depth = max_depth
+        self._f_terminal = functions.is_terminal
+        self._f_evaluate = functions.euclid
+
+    def find(self):
+        state = Search_Node(self.features)
+        for piece in state.features.state:
+            if piece in state.goal:
+                return (("EXIT", piece))
+        value, future = self._minimax(state, self.max_depth)
+
+        if future == state:
+            return future.move
+
+        while future.parent != state:
+            future = future.parent
+
+        return future.move
+
+    def _minimax(self, state, depth):
+        if depth == 0:
+            return self._f_evaluate(state), state
+
+        if self._f_terminal(state):
+            state.move(("EXIT", self._f_terminal(state)))
+            return 120, state
+
+        best_state = None
+        best_value = float("-inf")
+        state.get_children()
+
+        for child in state.children:
+            next_state = self._minimax(child, depth-1)
+            if next_state == None:
+                continue
+            next_state = next_state[-1]
+            value = self._f_evaluate(next_state)
+
+            if (value > best_value) or (value == best_value and random.random() < 0.3):
+                best_state = next_state
+                best_value = value
+
+        if best_state == None:
+            return
+
+        best_state.features.colour = (best_state.features.colour - 1) % 3
+        best_state.update_goal()
+        return (best_value, best_state)
 
 if __name__ == "__main__":
     main()
