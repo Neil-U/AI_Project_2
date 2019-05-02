@@ -11,16 +11,14 @@ for i in range(1,4):
     for j in range(-3,4-i):
         BOARD.add((i,j))
 
-COLOUR_DIC = {'red': 0, 'green': 1, 'blue': 2}
 MIN_DEPTH = 2
-
-def main():
-    player = Player("red")
-    print(player.action())
+RED = 0
+GREEN = 1
+BLUE = 2
 
 class Player:
     def __init__(self, colour):
-        self.features = Features(COLOUR_DIC['red'])
+        self.features = Features(RED)
 
     def action(self):
         if not self.features.state[self.features.colour]:
@@ -32,20 +30,21 @@ class Player:
         return maxn.find()
 
     def update(self, colour, action):
-        self.features = self.features.update(COLOUR_DIC[colour], action)
+        self.features = self.features.update(action)
 
 class Features:
     def __init__(self, colour):
         self.colour = colour
         self.period = 0
-        self.score = {0: [4, 0], 1: [4, 0], 2: [4, 0]}
+        self.score = {RED: [4, 0], GREEN: [4, 0], BLUE: [4, 0]}
         self.state = {
-            0: {(-3, 0), (-3, 1), (-3, 2), (-3, 3)},
-            1: {(0, -3), (1, -3), (2, -3), (3, -3)},
-            2: {(3, 0), (2, 1), (1, 2), (0, 3)}}
+            RED: {(-3, 0), (-3, 1), (-3, 2), (-3, 3)},
+            GREEN: {(0, -3), (1, -3), (2, -3), (3, -3)},
+            BLUE: {(3, 0), (2, 1), (1, 2), (0, 3)}}
 
-    def update(self, colour, action):
+    def update(self, action):
         new = copy.deepcopy(self)
+        colour = self.colour
         new.colour = (colour + 1) % 3
         change = action[1]
 
@@ -108,13 +107,13 @@ class Search_Node:
 
     def get_children(self):
         for move in self.poss_moves():
-            self.children.append(Search_Node(self.features.update(self.features.colour, move), self, move))
+            self.children.append(Search_Node(self.features.update(move), self, move))
 
     def update_goal(self):
         self.goal = {
-            0: {(3,-3), (3,-2), (3,-1), (3,0)},
-            1: {(-3,3), (-2,3), (-1,3), (0,3)},
-            2: {(0,-3), (-1,-2), (-2,-1), (-3,0)}}[self.turn]
+            RED: {(3,-3), (3,-2), (3,-1), (3,0)},
+            GREEN: {(-3,3), (-2,3), (-1,3), (0,3)},
+            BLUE: {(0,-3), (-1,-2), (-2,-1), (-3,0)}}[self.turn]
 
 class Evaluation_Function:
     def __init__(self):
@@ -178,7 +177,7 @@ class Minimax:
             state.update_goal()
             return state
 
-        best_state = None
+        best_state = state
         best_value = float("-inf")
         state.get_children()
 
@@ -187,13 +186,9 @@ class Minimax:
             if next_state == None:
                 continue
             value = self._f_evaluate(next_state)
-
             if (value > best_value) or (value == best_value and random.random() < 0.3):
                 best_state = next_state
                 best_value = value
-
-        if best_state == None:
-            return state
 
         best_state.turn = (best_state.turn - 1) % 3
         best_state.update_goal()
