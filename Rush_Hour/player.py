@@ -6,6 +6,7 @@ BOARD = set()
 for i in range(-3,1):
     for j in range(-3-i, 4):
         BOARD.add((i,j))
+
 for i in range(1,4):
     for j in range(-3,4-i):
         BOARD.add((i,j))
@@ -32,7 +33,6 @@ class Player:
 
     def update(self, colour, action):
         self.features = self.features.update(COLOUR_DIC[colour], action)
-        print(self.features.state)
 
 class Features:
     def __init__(self, colour):
@@ -46,7 +46,7 @@ class Features:
 
     def update(self, colour, action):
         new = copy.deepcopy(self)
-        new.colour = (colour + 1) %3
+        new.colour = (colour + 1) % 3
         change = action[1]
 
         if action[0] == "MOVE":
@@ -78,6 +78,7 @@ class Search_Node:
         self.parent = parent
         self.children = []
         self.move = move
+        self.turn = features.colour
         self.goal = {}
         self.update_goal()
 
@@ -113,14 +114,14 @@ class Search_Node:
         self.goal = {
             0: {(3,-3), (3,-2), (3,-1), (3,0)},
             1: {(-3,3), (-2,3), (-1,3), (0,3)},
-            2: {(0,-3), (-1,-2), (-2,-1), (-3,0)}}[self.features.colour]
+            2: {(0,-3), (-1,-2), (-2,-1), (-3,0)}}[self.turn]
 
 class Evaluation_Function:
     def __init__(self):
         return
 
     def is_terminal(self, state):
-        for piece in state.features.state:
+        for piece in state.features.state[state.turn]:
             if piece in state.goal:
                 return piece
         return False
@@ -134,13 +135,17 @@ class Evaluation_Function:
 
     def euclid(self, state):
         dist = 0
-        for j in list(state.features.state[state.features.colour]):
-            for i in list(state.goal):
-                dist += (i[0] - j[0])**2 + (i[1] - j[1])**2
+        for j in state.features.state[state.turn]:
+            if state.turn == 0:
+                dist += 3 - j[0]
+            if state.turn == 1:
+                dist += 3 - j[1]
+            if state.turn == 2:
+                dist += 3 - (-j[0]-j[1])
         return -dist
 
 class Minimax:
-    def __init__(self, features, functions, max_depth=1):
+    def __init__(self, features, functions, max_depth=3):
         self.features = features
         self.max_depth = max_depth
         self._f_terminal = functions.is_terminal
@@ -148,10 +153,10 @@ class Minimax:
 
     def find(self):
         state = Search_Node(self.features)
-        for piece in state.features.state:
+        for piece in state.features.state[state.turn]:
             if piece in state.goal:
                 return (("EXIT", piece))
-        value, future = self._minimax(state, self.max_depth)
+        future = self._minimax(state, self.max_depth)
 
         if future == state:
             return future.move
@@ -162,12 +167,16 @@ class Minimax:
         return future.move
 
     def _minimax(self, state, depth):
-        if depth == 0:
-            return self._f_evaluate(state), state
 
         if self._f_terminal(state):
-            state.move(("EXIT", self._f_terminal(state)))
-            return 120, state
+            state.turn = (state.turn - 1) % 3
+            state.update_goal()
+            return state
+
+        if depth == 0:
+            state.turn = (state.turn - 1) % 3
+            state.update_goal()
+            return state
 
         best_state = None
         best_value = float("-inf")
@@ -177,7 +186,6 @@ class Minimax:
             next_state = self._minimax(child, depth-1)
             if next_state == None:
                 continue
-            next_state = next_state[-1]
             value = self._f_evaluate(next_state)
 
             if (value > best_value) or (value == best_value and random.random() < 0.3):
@@ -185,11 +193,11 @@ class Minimax:
                 best_value = value
 
         if best_state == None:
-            return
+            return state
 
-        best_state.features.colour = (best_state.features.colour - 1) % 3
+        best_state.turn = (best_state.turn - 1) % 3
         best_state.update_goal()
-        return (best_value, best_state)
+        return best_state
 
 if __name__ == "__main__":
     main()
