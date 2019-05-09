@@ -1,6 +1,7 @@
 import sys
 import copy
 import random
+from Rush_Hour.mctslib import mcts
 
 BOARD = set()
 for i in range(-3,1):
@@ -11,26 +12,29 @@ for i in range(1,4):
     for j in range(-3,4-i):
         BOARD.add((i,j))
 
-MIN_DEPTH = 2
 RED = 0
 GREEN = 1
 BLUE = 2
+
+mcts = mcts(timeLimit = 1000)
 
 class Player:
     def __init__(self, colour):
         self.features = Features(RED)
 
-    def action(self):
+    def action2(self):
         if not self.features.state[self.features.colour]:
             return ("PASS", None)
         functions = Evaluation_Function()
-        # state = Search_Node(self.features)
-        # print(functions.euclid(state))
         maxn = Minimax(self.features, functions)
         return maxn.find()
 
+    def action(self):
+        return mcts.search(initialState = Search_Node(self.features))
+
     def update(self, colour, action):
         self.features = self.features.update(action)
+
 
 class Features:
     def __init__(self, colour):
@@ -72,6 +76,7 @@ class Features:
         return new
 
 class Search_Node:
+
     def __init__(self, features, parent = None, move = None):
         self.features = features
         self.parent = parent
@@ -80,6 +85,30 @@ class Search_Node:
         self.turn = features.colour
         self.goal = {}
         self.update_goal()
+
+
+    def getPossibleActions(self):
+        return self.poss_moves()
+    def takeAction(self, action):
+        newState = self.features.update(action)
+        return Search_Node(newState)
+    # very dodgy isTerminal function. need to find actual rules that confirm that it is terminal
+    def isTerminal(self):
+        if len(self.getPossibleActions()) == 0:
+            return True
+        for c in self.features.score.keys():
+            if self.features.score[c][1] == 4:
+                return True
+        return False
+    def getReward(self):
+        for colour in self.features.score:
+            if self.features.score[colour][1] == 4:
+                if colour == self.features.colour:
+                    return 1
+                else:
+                    return -1
+        return 0
+
 
     def poss_moves(self):
         poss_moves = []
@@ -126,10 +155,7 @@ class Evaluation_Function:
         return False
 
     def random(self, state):
-        if state.features.score[state.features.colour][1] == 4:
-            return 120
-        elif (state.features.score[(state.features.colour + 1) % 3][1] == 4) or (state.features.score[(state.features.colour + 2) % 3][1] == 4):
-            return 0
+        
         return random.randint(1, 100)
 
     def euclid(self, state):
@@ -141,10 +167,11 @@ class Evaluation_Function:
                 dist += 3 - j[1]
             if state.turn == 2:
                 dist += 3 - (-j[0]-j[1])
+
         return -dist
 
 class Minimax:
-    def __init__(self, features, functions, max_depth=3):
+    def __init__(self, features, functions, max_depth=2):
         self.features = features
         self.max_depth = max_depth
         self._f_terminal = functions.is_terminal
