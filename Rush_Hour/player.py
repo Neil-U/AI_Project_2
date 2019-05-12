@@ -1,7 +1,7 @@
-rimport sys
+import sys
 import copy
 import random
-from Rush_Hour.mctslib import mcts
+from Rush_Hour.mctslib2 import mcts
 
 BOARD = set()
 for i in range(-3,1):
@@ -16,7 +16,7 @@ RED = 0
 GREEN = 1
 BLUE = 2
 
-mcts = mcts(timeLimit = 1000)
+mcts = mcts(timeLimit = 3000)
 
 class Player:
     def __init__(self, colour):
@@ -96,10 +96,11 @@ class Search_Node:
     def isTerminal(self):
         if len(self.getPossibleActions()) == 0:
             return True
-        for c in self.features.score.keys():
+        for c in self.features.score:
             if self.features.score[c][1] == 4:
                 return True
         return False
+
     def getReward(self):
         for colour in self.features.score:
             if self.features.score[colour][1] == 4:
