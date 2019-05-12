@@ -1,4 +1,4 @@
-import sys
+rimport sys
 import copy
 import random
 from Rush_Hour.mctslib import mcts
@@ -62,11 +62,11 @@ class Features:
             middle_piece = ((change[0][0] + change[1][0])/2,
                 (change[0][1] + change[1][1])/2)
             new.state[colour].add(middle_piece)
-            new.score[colour][0] += 1
             for i in [1,2]:
                 if middle_piece in new.state[(colour + i) % 3]:
                     new.state[(colour + i) % 3].remove(middle_piece)
                     new.score[(colour + i) % 3][0] -= 1
+                    new.score[colour][0] += 1
 
         elif action[0] == 'EXIT':
             new.state[colour].remove(change)
@@ -152,20 +152,21 @@ class Evaluation_Function:
         return False
 
     def random(self, state):
-        
+
         return random.randint(1, 100)
 
     def euclid(self, state):
         dist = 0
         for j in state.features.state[state.turn]:
             if state.turn == 0:
-                dist += 3 - j[0]
+                dist -= 3 - j[0]
             if state.turn == 1:
-                dist += 3 - j[1]
+                dist -= 3 - j[1]
             if state.turn == 2:
-                dist += 3 - (-j[0]-j[1])
-
-        return -dist
+                dist -= 3 - (-j[0]-j[1])
+        dist+= (state.features.score[state.turn][0])*6
+        dist+= (state.features.score[state.turn][1])*12
+        return dist
 
 class Minimax:
     def __init__(self, features, functions, max_depth=2):
