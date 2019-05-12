@@ -92,7 +92,6 @@ class Search_Node:
     def takeAction(self, action):
         newState = self.features.update(action)
         return Search_Node(newState)
-    # very dodgy isTerminal function. need to find actual rules that confirm that it is terminal
     def isTerminal(self):
         if len(self.getPossibleActions()) == 0:
             return True
@@ -130,8 +129,8 @@ class Search_Node:
                     elif new_jump in BOARD and new_jump not in occupied:
                         poss_moves.append(("JUMP", (piece, new_jump)))
 
-            if not poss_moves:
-                poss_moves.append(("PASS", None))
+        if not poss_moves:
+            poss_moves.append(("PASS", None))
 
         return poss_moves
 
