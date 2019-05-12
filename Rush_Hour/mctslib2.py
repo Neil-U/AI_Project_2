@@ -68,7 +68,7 @@ class mcts():
     def selectNode(self, node):
         while not node.isTerminal:
             if node.isFullyExpanded:
-                node = self.getBestChild(node, self.explorationConstant)
+                node = self.find(node)
             else:
                 return self.expand(node)
         return node
@@ -90,6 +90,56 @@ class mcts():
             node.numVisits += 1
             node.totalReward += reward
             node = node.parent
+
+    def euclid(self, state):
+        dist = 0
+        for j in state.features.state[state.turn]:
+            if state.turn == 0:
+                dist -= 3 - j[0]
+            if state.turn == 1:
+                dist -= 3 - j[1]
+            if state.turn == 2:
+                dist -= 3 - (-j[0]-j[1])
+        dist+= (state.features.score[state.turn][0])*6
+        dist+= (state.features.score[state.turn][1])*12
+        return dist
+
+    def find(self, node):
+        future = self._minimax(node, 2)
+        print(node)
+        print(future)
+
+        if future == node:
+            return future
+
+        while future.parent != node:
+            future = future.parent
+
+        return future
+
+    def _minimax(self, node, depth):
+
+        if depth == 0:
+            node.state.turn = (node.state.turn - 1) % 3
+            node.state.update_goal()
+            return node
+
+        best_node = node
+        best_value = float("-inf")
+        node.state.get_children()
+
+        for child in node.state.children:
+            next_node = self._minimax(treeNode(child, node), depth-1)
+            if next_node == None:
+                continue
+            value = self.euclid(next_node.state)
+            if (value > best_value) or (value == best_value and random.random() < 0.3):
+                best_node = node
+                best_value = value
+
+        best_node.state.turn = (best_node.state.turn - 1) % 3
+        best_node.state.update_goal()
+        return best_node
 
     def getBestChild(self, node, explorationValue):
         bestValue = float("-inf")

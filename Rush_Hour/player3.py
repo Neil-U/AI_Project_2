@@ -18,16 +18,15 @@ GREEN = 1
 BLUE = 2
 
 EXPLORATION = math.sqrt(2)
-TIME = 1000
-
-
+TIME = 2000
 
 class Player:
     def __init__(self, colour):
         self.features = Features(RED)
+        self.mcts = MCTS(TIME)
 
     def action(self):
-        return mcts.search(self.features)
+        return self.mcts.search(self.features)
 
     def update(self, colour, action):
         self.features = self.features.update(action)
@@ -36,7 +35,6 @@ class Player:
 class Features:
     def __init__(self, colour):
         self.colour = colour
-        self.period = 0
         self.score = {RED: [4, 0], GREEN: [4, 0], BLUE: [4, 0]}
         self.state = {
             RED: {(-3, 0), (-3, 1), (-3, 2), (-3, 3)},
@@ -77,7 +75,6 @@ class MCTS_Node():
         self.features = features
         self.parent = parent
         self.isTerminal = self.isTerminal()
-        self.isFullyExpanded = self.isTerminal
         self.numVisits = 0
         self.totalReward = 0
         self.children = {}
@@ -89,7 +86,7 @@ class MCTS_Node():
         self.goal = {
             RED: {(3,-3), (3,-2), (3,-1), (3,0)},
             GREEN: {(-3,3), (-2,3), (-1,3), (0,3)},
-            BLUE: {(0,-3), (-1,-2), (-2,-1), (-3,0)}}[self.turn]
+            BLUE: {(0,-3), (-1,-2), (-2,-1), (-3,0)}}[self.features.colour]
 
     def isTerminal(self):
         for c in self.features.score.keys():
@@ -121,18 +118,21 @@ class MCTS_Node():
 
         return poss_moves
 
-    def doMove(self, move):
-        newState = self.features.update(move)
-        return MCTS_Node(newState)
+    def isFullyExpanded(self):
+        if len(self.possibleMoves()) == len(self.children):
+            return True
+        return False
 
-    def getReward(self):
-        for colour in self.features.score:
-            if self.features.score[colour][1] == 4:
-                if colour == self.features.colour:
-                    return 1
+    def doMove(self, move, parent):
+        newState = self.features.update(move)
+        return MCTS_Node(newState, parent)
+
+    def getReward(self, colour):
+        if self.features.score[colour][1] == 4:
+                return 1
         return 0
 
-class mcts():
+class MCTS():
     def __init__(self, timeLimit = None, explorationConstant = math.sqrt(2)):
         if timeLimit == None:
             raise ValueError("Need a time limit")
@@ -141,7 +141,7 @@ class mcts():
             self.explorationConstant = explorationConstant
 
     def search(self, features):
-        self.root = MCTS_Node(features)
+        self.root = MCTS_Node(copy.deepcopy(features))
         timeLimit = time.time() + self.timeLimit/1000
         while time.time() < timeLimit:
             self.dive()
@@ -155,17 +155,18 @@ class mcts():
     def dive(self):
         node = self.root
         while node.isTerminal == False:
-            if node.isFullyExpanded:
+            if node.isFullyExpanded() is True:
                 node = self.getBestChild(node, self.explorationConstant)
             else:
-                node = self.expand(node)
+                self.expand(node)
                 break
 
-        node2 = node
         while node.isTerminal == False:
             move = random.choice(node.possibleMoves())
-            node2 = node2.doMove(move)
-        reward = node2.getReward()
+            if move not in node.children:
+                node.children[move] = node.doMove(move, node)
+            node = node.children[move]
+        reward = node.getReward(self.root.features.colour)
 
         self.propogate(node, reward)
 
@@ -181,16 +182,15 @@ class mcts():
             if move not in node.children.keys():
                 new = MCTS_Node(node.features.update(move), node)
                 node.children[move] = new
-                if len(moves) == len(node.children):
-                    node.isFullyExpanded = True
-                return new
 
-    def getBestChild(self, node, exploration):
+    def getBestChild(self, node, explorationValue):
         bestValue = float("-inf")
         bestNodes = []
         for child in node.children.values():
-            value = child.totalReward / child.numVisits + explorationValue * math.sqrt(
-                2 * math.log(node.numVisits) / child.numVisits)
+            value = child.totalReward / (1+ child.numVisits) + explorationValue * math.sqrt(
+                2 * math.log(node.numVisits) / (1 + child.numVisits)) + (
+                20*child.features.score[self.root.features.colour][1] +
+                10*child.features.score[self.root.features.colour][0])
             if value > bestValue:
                 bestValue = value
                 bestNodes = [child]
@@ -198,8 +198,9 @@ class mcts():
                 bestNodes.append(child)
         return random.choice(bestNodes)
 
+def main():
+    hey = Player(0)
+    hey.action()
 
-mcts = mcts(timeLimit = TIME)
 if __name__ == "__main__":
-
     main()
