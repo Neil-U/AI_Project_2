@@ -16,7 +16,7 @@ RED = 0
 GREEN = 1
 BLUE = 2
 
-mcts = mcts(timeLimit = 1000)
+mcts = mcts(timeLimit = 2000)
 
 class Player:
     def __init__(self, colour):
@@ -92,10 +92,7 @@ class Search_Node:
     def takeAction(self, action):
         newState = self.features.update(action)
         return Search_Node(newState)
-    # very dodgy isTerminal function. need to find actual rules that confirm that it is terminal
     def isTerminal(self):
-        if len(self.getPossibleActions()) == 0:
-            return True
         for c in self.features.score.keys():
             if self.features.score[c][1] == 4:
                 return True
@@ -129,8 +126,8 @@ class Search_Node:
                     elif new_jump in BOARD and new_jump not in occupied:
                         poss_moves.append(("JUMP", (piece, new_jump)))
 
-            if not poss_moves:
-                poss_moves.append(("PASS", None))
+        if not poss_moves:
+            poss_moves.append(("PASS", None))
 
         return poss_moves
 
