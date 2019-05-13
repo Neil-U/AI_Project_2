@@ -17,7 +17,7 @@ RED = 0
 GREEN = 1
 BLUE = 2
 
-EXPLORATION = math.sqrt(2)
+EXPLORATION = 1
 TIME = 2000
 
 class Player:
@@ -225,7 +225,7 @@ class MCTS():
         for child in node.children.values():
             value = child.totalReward / (1+ child.numVisits) + explorationValue * (
                 2*child.features.score[self.root.features.colour][1] +
-                .5*child.features.score[self.root.features.colour][0])
+                child.features.score[self.root.features.colour][0])
             if value > bestValue:
                 bestValue = value
                 bestNodes = [child]
