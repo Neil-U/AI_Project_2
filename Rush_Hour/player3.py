@@ -19,7 +19,7 @@ GREEN = 1
 BLUE = 2
 
 EXPLORATION = 1
-TIME = 1600
+TIME = 2000
 
 class Player:
     def __init__(self, colour):
@@ -148,8 +148,19 @@ class MCTS_Node():
         return MCTS_Node(newState, index, self)
 
     def getReward(self, colour):
+        # get an exit
         if self.features.score[colour][1] > self.parent.features.score[colour][1]:
-                return sum(self.features.score[colour])/2
+            # if self.features.score[colour][1] == 4:
+            #     # win the game
+            #     return 50
+            # else:
+            return 3
+        # gain a piece 
+        if self.features.score[colour][0] > self.parent.features.score[colour][0]:
+            return 2
+        # lose a piece
+        elif self.features.score[colour][0] < self.parent.features.score[colour][0]:
+            return -1000
         for i in [1,2]:
             if self.features.score[(colour + i) % 3][1] > self.parent.features.score[(colour + i) % 3][1]:
                     return -4/sum(self.features.score[colour])
