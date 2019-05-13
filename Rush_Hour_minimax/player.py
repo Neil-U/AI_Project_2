@@ -169,7 +169,7 @@ class Evaluation_Function:
         return dist
 
 class Minimax:
-    def __init__(self, features, functions, max_depth=2):
+    def __init__(self, features, functions, max_depth=3):
         self.features = features
         self.max_depth = max_depth
         self._f_terminal = functions.is_terminal

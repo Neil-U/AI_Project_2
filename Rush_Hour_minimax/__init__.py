@@ -1,1 +1,1 @@
-from Rush_Hour.player3 import Player as Player
+from Rush_Hour_minimax.player import Player as Player
