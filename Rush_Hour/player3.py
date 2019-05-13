@@ -18,7 +18,7 @@ GREEN = 1
 BLUE = 2
 
 EXPLORATION = math.sqrt(2)
-TIME = 1000
+TIME = 2000
 
 class Player:
     def __init__(self, colour):
