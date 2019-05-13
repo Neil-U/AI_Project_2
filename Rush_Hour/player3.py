@@ -72,20 +72,37 @@ class Features:
 
         return new
 
+    def f_euclid(self, b, n):
+        colour = self.colour
+        if colour == 0:
+            dist = n[0] - b[0] + 1
+        if colour == 1:
+            dist = n[1] - b[1] + 1
+        if colour == 2:
+            dist = (-n[0] - n[1]) - (-b[0]-b[1]) + 1
+        return dist
+
+    def prune(self, b, n):
+        if self.f_euclid(b, n):
+            return False
+        return True
+
 class MCTS_Node():
     def __init__(self, features, index, parent=None):
         self.features = features
         self.parent = parent
         self.index = index
-        self.isTerminal = self.isTerminal()
-        self.isFullyExpanded = False
-        self.childVisits = np.zeros(72, dtype=np.float32)
-        self.childRewards = np.zeros(72, dtype=np.float32)
-        self.numChildren = 0
-        self.children = {}
         self.goal = {}
         self.turn = self.features.colour
         self.update_goal()
+        self.isFullyExpanded = False
+        self.possMoves = self.possibleMoves()
+        self.visits = np.zeros(len(self.possMoves), dtype=np.float32)
+        self.childVisits = np.zeros(len(self.possMoves), dtype=np.float32)
+        self.childRewards = np.zeros(len(self.possMoves), dtype=np.float32)
+        self.numChildren = 0
+        self.children = {}
+
 
     def update_goal(self):
         self.goal = {
@@ -118,18 +135,18 @@ class MCTS_Node():
 
                 if new in BOARD:
                     if new not in occupied:
-                        poss_moves.append(("MOVE", (piece, new)))
+                        if self.features.prune(piece, new) is False:
+                            poss_moves.append(("MOVE", (piece, new)))
                     elif new_jump in BOARD and new_jump not in occupied:
                         poss_moves.append(("JUMP", (piece, new_jump)))
 
         if not poss_moves:
             poss_moves.append(("PASS", None))
-
         return poss_moves
 
-    def doMove(self, move, parent, index):
+    def doMove(self, move, index):
         newState = self.features.update(move)
-        return MCTS_Node(newState,index, parent)
+        return MCTS_Node(newState, index, self)
 
     def getReward(self, colour):
         if self.features.score[colour][1] > self.parent.features.score[colour][1]:
@@ -230,43 +247,38 @@ class MCTS():
 
     def search(self, features):
         self.root = MCTS_Node(copy.deepcopy(features), None)
-        if self.root.isSole():
-            bestChild = self.sologetBestChild(self.root)
+        print(self.root.possMoves)
         timeLimit = time.time() + self.timeLimit/1000
         while time.time() < timeLimit:
             self.dive()
-        print('a')
-        bestChild = self.getBestChild(self.root, 0)
-        for move, node in self.root.children.items():
-            if node is bestChild:
-                return move
+        bestIndex = self.getBestChild(self.root, 0)
+        return self.root.possMoves[bestIndex]
 
     def dive(self):
         node = self.root
-        while node.isTerminal(self.root.features.colour) == False:
+        self.expand(node)
+
+        while node.isTerminal(self.root.features.colour) is False:
+            node.visits += 1
             if node.isFullyExpanded is True:
-                node = self.getBestChild(node, self.explorationConstant)
+                index = self.getBestChild(node, self.explorationConstant)
+                if node.possMoves[index] not in node.children:
+                    node.children[node.possMoves[index]] = node.doMove(node.possMoves[index], index)
+                node = node.children[node.possMoves[index]]
+
             else:
                 self.expand(node)
-                node = node.children[random.choice(list(node.children.keys()))]
+                move = random.choice(node.possibleMoves())
+                node2 = node.doMove(move, None)
+
                 break
 
-
-        while node.isTerminal == False:
-            move = random.choice(node.possibleMoves())
-            if move not in node.children:
-                node.children[move] = node.doMove(move, node, node.numChildren)
-                node.numChildren += 1
-            node = node.children[move]
-        reward = node.getReward(self.root.features.colour)
-
-        # Not sure what u wanted to do here so i didnt want to delete
-        # node2 = node
-        # while node2.isTerminal(self.root.features.colour) == False:
-        #     move = random.choice(node2.possibleMoves())
-        #     node2 = node2.doMove(move)
-        # reward = node2.getReward(self.root.features.colour)
-
+        if node.isTerminal(self.root.features.colour) is True:
+            node2 = node
+        while node2.isTerminal(self.root.features.colour) == False:
+            move = random.choice(node2.possibleMoves())
+            node2 = node2.doMove(move, None)
+        reward = node2.getReward(self.root.features.colour)
 
         self.propogate(node, reward)
 
@@ -276,58 +288,25 @@ class MCTS():
             node.changeReward(reward)
             node = node.parent
 
-    def expand(self, node):
-        moves = node.possibleMoves()
-        for move in moves:
-            if move not in node.children.keys():
-                new = MCTS_Node(node.features.update(move),node.numChildren, node)
-                node.numChildren += 1
 
-                node.children[move] = new
-                node.isFullyExpanded = True
+    def expand(self, node):
+        # moves = node.possibleMoves()
+        # for move in moves:
+        #     new = MCTS_Node(node.features.update(move),node.numChildren, node)
+        #     node.numChildren += 1
+        #
+        #     node.children[move] = new
+        node.isFullyExpanded = True
 
     def getBestChild(self, node, explorationValue):
-
-        values = node.childRewards / (1 + node.childVisits) + explorationValue * math.sqrt(2*math.log(node.numVisits())/node.childVisits)
+        if explorationValue == 0:
+            for i in range(len(node.possMoves)):
+                print(node.possMoves[i], node.childVisits[i])
+        values = node.childRewards / (1 + node.childVisits) + explorationValue * np.sqrt(np.log(node.visits)/(1 + node.childVisits))
         return np.argmax(values)
-
-        # bestValue = float("-inf")
-        # bestNodes = []
-        # for move, child in node.children.items():
-        #     value = child.totalReward / (1+ child.numVisits) + explorationValue * math.sqrt(
-        #         2 * math.log(node.numVisits) / (1+ child.numVisits))
-        #     if explorationValue == 0:
-        #         print(move, child.numVisits, value)
-        #     if value > bestValue:
-        #         bestValue = value
-        #         bestNodes = [child]
-        #     elif value == bestValue:
-        #         bestNodes.append(child)
-        # return random.choice(bestNodes)
-
-
-    def solegetBestChild(self, node):
-        bestValue = float("-inf")
-        bestNodes = []
-        for move, child in node.children.items():
-            value = child.huer(self.root.features.colour)
-            if value > bestValue:
-                bestValue = value
-                bestNodes = [move]
-            elif value == bestValue:
-                bestNodes.append(move)
-        return random.choice(bestNodes)
 
 def main():
     hey = Player(0)
-    hey.update(0, hey.action())
-    hey.update(0, hey.action())
-    hey.update(0, hey.action())
-    hey.update(0, hey.action())
-    hey.update(0, hey.action())
-    hey.update(0, hey.action())
-    hey.update(0, hey.action())
-    hey.update(0, hey.action())
     hey.update(0, hey.action())
 
 if __name__ == "__main__":
