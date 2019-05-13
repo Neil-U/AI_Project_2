@@ -223,8 +223,9 @@ class MCTS():
         bestValue = float("-inf")
         bestNodes = []
         for child in node.children.values():
-            value = child.totalReward / (1+ child.numVisits) + explorationValue * (
-                2*child.features.score[self.root.features.colour][1] +
+            value = child.totalReward / (1+ child.numVisits) + explorationValue * math.sqrt(
+                2 * math.log(node.numVisits) / (1 + child.numVisits)) + (
+                child.features.score[self.root.features.colour][1] +
                 .5*child.features.score[self.root.features.colour][0])
             if value > bestValue:
                 bestValue = value
