@@ -3,6 +3,7 @@ import copy
 import random
 import time
 import math
+import numpy as np
 
 BOARD = set()
 for i in range(-3,1):
@@ -72,13 +73,15 @@ class Features:
         return new
 
 class MCTS_Node():
-    def __init__(self, features, parent=None):
+    def __init__(self, features, index, parent=None):
         self.features = features
         self.parent = parent
+        self.index = index
         self.isTerminal = self.isTerminal()
         self.isFullyExpanded = False
-        self.numVisits = 0
-        self.totalReward = 0
+        self.childVisits = np.zeros(72, dtype=np.float32)
+        self.childRewards = np.zeros(72, dtype=np.float32)
+        self.numChildren = 0
         self.children = {}
         self.turn = self.features.colour
         self.goal = {}
@@ -122,9 +125,9 @@ class MCTS_Node():
 
         return poss_moves
 
-    def doMove(self, move, parent):
+    def doMove(self, move, parent, index):
         newState = self.features.update(move)
-        return MCTS_Node(newState, parent)
+        return MCTS_Node(newState,index, parent)
 
     def getReward(self, colour):
         if self.features.score[colour][1] > self.parent.features.score[colour][1]:
@@ -163,6 +166,16 @@ class MCTS_Node():
         dist+= (self.features.score[colour][1])*12
         return dist
 
+    def changeReward(self, value):
+        self.parent.childRewards[self.index] += value
+
+    def addVisit(self):
+        self.parent.childVisits[self.index] += 1
+
+    def numVisits(self):
+        return self.parent.childVisits[self.index]
+
+
 class MCTS():
     def __init__(self, timeLimit = None, explorationConstant = math.sqrt(2)):
         if timeLimit == None:
@@ -172,7 +185,7 @@ class MCTS():
             self.explorationConstant = explorationConstant
 
     def search(self, features):
-        self.root = MCTS_Node(copy.deepcopy(features))
+        self.root = MCTS_Node(copy.deepcopy(features), None)
         timeLimit = time.time() + self.timeLimit/1000
         while time.time() < timeLimit:
             self.dive()
@@ -199,39 +212,32 @@ class MCTS():
         while node.isTerminal == False:
             move = random.choice(node.possibleMoves())
             if move not in node.children:
-                node.children[move] = node.doMove(move, node)
+                node.children[move] = node.doMove(move, node, node.numChildren)
+                node.numChildren += 1
             node = node.children[move]
         reward = node.getReward(self.root.features.colour)
 
         self.propogate(node, reward)
 
     def propogate(self, node, reward):
-        while node is not None:
-            node.numVisits += 1
-            node.totalReward += reward
+        while node.parent is not None:
+            node.addVisit()
+            node.changeReward(reward)
             node = node.parent
 
     def expand(self, node):
         moves = node.possibleMoves()
         for move in moves:
             if move not in node.children.keys():
-                new = MCTS_Node(node.features.update(move), node)
+                new = MCTS_Node(node.features.update(move),node.numChildren, node)
+                node.numChildren += 1
+
                 node.children[move] = new
         node.isFullyExpanded = True
 
     def getBestChild(self, node, explorationValue):
-        bestValue = float("-inf")
-        bestNodes = []
-        for child in node.children.values():
-            value = child.totalReward / (1+ child.numVisits) + explorationValue * (
-                2*child.features.score[self.root.features.colour][1] +
-                child.features.score[self.root.features.colour][0])
-            if value > bestValue:
-                bestValue = value
-                bestNodes = [child]
-            elif value == bestValue:
-                bestNodes.append(child)
-        return random.choice(bestNodes)
+        values = node.childRewards / (1 + node.childVisits) + explorationValue * math.sqrt(2*math.log(node.numVisits())/node.childVisits)
+        return np.argmax(values)
 
     def solegetBestChild(self, node):
         bestValue = float("-inf")
