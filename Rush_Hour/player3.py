@@ -19,7 +19,7 @@ GREEN = 1
 BLUE = 2
 
 EXPLORATION = 1
-TIME = 2000
+TIME = 1600
 
 class Player:
     def __init__(self, colour):
@@ -103,7 +103,6 @@ class MCTS_Node():
         self.numChildren = 0
         self.children = {}
 
-
     def update_goal(self):
         self.goal = {
             RED: {(3,-3), (3,-2), (3,-1), (3,0)},
@@ -158,39 +157,6 @@ class MCTS_Node():
             return -2
         return 0
 
-    def isSole(self):
-        for i in [1,2]:
-            if self.features.score[(self.features.colour + i) % 3][0] != 0:
-                return False
-        return True
-
-    def euclid(self):
-        dist = 0
-        colour = self.features.colour
-        for j in self.features.state[colour]:
-            if colour == 0:
-                dist -= 3 - j[0]
-            if colour == 1:
-                dist -= 3 - j[1]
-            if colour == 2:
-                dist -= 3 - (-j[0]-j[1])
-        dist+= (self.features.score[colour][0])*6
-        dist+= (self.features.score[colour][1])*12
-        return dist
-
-    def huer(self):
-        dist = 0
-        for j in self.features.state[self.features.colour]:
-            if colour == 0:
-                dist -= 3 - j[0]
-            if colour == 1:
-                dist -= 3 - j[1]
-            if colour == 2:
-                dist -= 3 - (-j[0]-j[1])
-        dist+= (self.features.score[colour][1])*12
-        return dist
-
-
     def changeReward(self, value):
         self.parent.childRewards[self.index] += value
 
@@ -199,43 +165,6 @@ class MCTS_Node():
 
     def numVisits(self):
         return self.parent.childVisits[self.index]
-
-    def find(self):
-        for piece in self.features.state[self.features.colour]:
-            if piece in self.goal:
-                return self.doMove(("EXIT", piece))
-        future = self._minimax(2)
-
-        while future.parent != self:
-            future = future.parent
-        return future
-
-    def _minimax(self, depth):
-
-        if self.isTerminal(self.features.colour) or depth == 0:
-            self.turn = (self.turn - 1) % 3
-            self.update_goal()
-            return self
-
-        best_state = self
-        best_value = float("-inf")
-        moves = self.possibleMoves()
-
-        for move in moves:
-            child = self.doMove(move)
-            next_state = child._minimax(depth-1)
-            if next_state is None:
-                continue
-            value = next_state.euclid()
-            if (value > best_value) or (value == best_value and random.random() < 0.3):
-                best_state = next_state
-                best_value = value
-
-        best_state.turn = (best_state.turn - 1) % 3
-        best_state.update_goal()
-        return best_state
-
-
 
 class MCTS():
     def __init__(self, timeLimit = None, explorationConstant = 1):
@@ -247,7 +176,6 @@ class MCTS():
 
     def search(self, features):
         self.root = MCTS_Node(copy.deepcopy(features), None)
-        print(self.root.possMoves)
         timeLimit = time.time() + self.timeLimit/1000
         while time.time() < timeLimit:
             self.dive()
@@ -270,16 +198,16 @@ class MCTS():
                 self.expand(node)
                 move = random.choice(node.possibleMoves())
                 node2 = node.doMove(move, None)
-
                 break
 
         if node.isTerminal(self.root.features.colour) is True:
             node2 = node
+
         while node2.isTerminal(self.root.features.colour) == False:
             move = random.choice(node2.possibleMoves())
             node2 = node2.doMove(move, None)
-        reward = node2.getReward(self.root.features.colour)
 
+        reward = node2.getReward(self.root.features.colour)
         self.propogate(node, reward)
 
     def propogate(self, node, reward):
@@ -288,20 +216,10 @@ class MCTS():
             node.changeReward(reward)
             node = node.parent
 
-
     def expand(self, node):
-        # moves = node.possibleMoves()
-        # for move in moves:
-        #     new = MCTS_Node(node.features.update(move),node.numChildren, node)
-        #     node.numChildren += 1
-        #
-        #     node.children[move] = new
         node.isFullyExpanded = True
 
     def getBestChild(self, node, explorationValue):
-        if explorationValue == 0:
-            for i in range(len(node.possMoves)):
-                print(node.possMoves[i], node.childVisits[i])
         values = node.childRewards / (1 + node.childVisits) + explorationValue * np.sqrt(np.log(node.visits)/(1 + node.childVisits))
         return np.argmax(values)
 
