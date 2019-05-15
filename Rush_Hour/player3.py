@@ -18,8 +18,7 @@ RED = 0
 GREEN = 1
 BLUE = 2
 
-EXPLORATION = 1
-TIME = 2000
+TIME = {0: 500, 1: 1200, 2: 2000}
 
 class Player:
     def __init__(self, colour):
@@ -27,7 +26,7 @@ class Player:
 
 
     def action(self):
-        self.mcts = MCTS(TIME)
+        self.mcts = MCTS(TIME[1])
         return self.mcts.search(self.features)
 
     def update(self, colour, action):
@@ -42,6 +41,14 @@ class Features:
             RED: {(-3, 0), (-3, 1), (-3, 2), (-3, 3)},
             GREEN: {(0, -3), (1, -3), (2, -3), (3, -3)},
             BLUE: {(3, 0), (2, 1), (1, 2), (0, 3)}}
+        self.goal = {}
+        self.update_goal()
+
+    def update_goal(self):
+        self.goal = {
+            RED: {(3,-3), (3,-2), (3,-1), (3,0)},
+            GREEN: {(-3,3), (-2,3), (-1,3), (0,3)},
+            BLUE: {(0,-3), (-1,-2), (-2,-1), (-3,0)}}[self.colour]
 
     def update(self, action):
         new = copy.deepcopy(self)
@@ -70,6 +77,8 @@ class Features:
             new.score[colour][0] -= 1
             new.score[colour][1] += 1
 
+        new.update_goal()
+
         return new
 
     def f_euclid(self, b, n):
@@ -86,6 +95,47 @@ class Features:
         if self.f_euclid(b, n):
             return False
         return True
+
+    def simulation(self, colour):
+        delay = 1
+        score = self.score
+        while self.isTerminal(colour, score) is False:
+            self = self.update(random.choice(self.f_possibleMoves()))
+            delay += 1
+        return self, delay
+
+    def f_possibleMoves(self):
+        poss_moves = []
+        occupied = set().union(*self.state.values())
+
+        for piece in self.state[self.colour]:
+            if piece in self.goal:
+                poss_moves.append(("EXIT", piece))
+                continue
+
+            for i,j in [(-1,0),(-1,1), (0,-1), (0,1), (1,0), (1,-1)]:
+                new = (piece[0]+i,piece[1]+j)
+                new_jump = (new[0] + i, new[1] + j)
+
+                if new in BOARD:
+                    if new not in occupied:
+                        #if self.features.prune(piece, new) is False:
+                        poss_moves.append(("MOVE", (piece, new)))
+                    elif new_jump in BOARD and new_jump not in occupied:
+                        poss_moves.append(("JUMP", (piece, new_jump)))
+
+        if not poss_moves:
+            poss_moves.append(("PASS", None))
+        return poss_moves
+
+    def isTerminal(self, colour, score):
+        for c in self.score.keys():
+            if self.score[c][1] > score[c][1]:
+                return True
+        if self.score[colour][0] == 0:
+            return True
+        return False
+
 
 class MCTS_Node():
     def __init__(self, features, index, parent=None):
@@ -136,6 +186,7 @@ class MCTS_Node():
                     if new not in occupied:
                         if self.features.prune(piece, new) is False:
                             poss_moves.append(("MOVE", (piece, new)))
+
                     elif new_jump in BOARD and new_jump not in occupied:
                         poss_moves.append(("JUMP", (piece, new_jump)))
 
@@ -147,26 +198,17 @@ class MCTS_Node():
         newState = self.features.update(move)
         return MCTS_Node(newState, index, self)
 
-    def getReward(self, colour):
+    def getReward(self, node, delay):
         # get an exit
-        if self.features.score[colour][1] > self.parent.features.score[colour][1]:
-            # if self.features.score[colour][1] == 4:
-            #     # win the game
-            #     return 50
-            # else:
-            return 3
-        # gain a piece 
-        if self.features.score[colour][0] > self.parent.features.score[colour][0]:
-            return 2
-        # lose a piece
-        elif self.features.score[colour][0] < self.parent.features.score[colour][0]:
-            return -1000
-        for i in [1,2]:
-            if self.features.score[(colour + i) % 3][1] > self.parent.features.score[(colour + i) % 3][1]:
-                    return -4/sum(self.features.score[colour])
-        if self.features.score[colour][0] == 0:
-            return -2
-        return 0
+        colour = node.features.colour
+        if sum(self.features.score[colour]) < 4:
+            return -6/delay
+        elif self.features.score[colour][1] > node.features.score[colour][1]:
+            if self.features.score[colour][0] > node.features.score[colour][0]:
+                return 12/delay
+            else:
+                return 4/delay
+        return -4/delay
 
     def changeReward(self, value):
         self.parent.childRewards[self.index] += value
@@ -178,7 +220,7 @@ class MCTS_Node():
         return self.parent.childVisits[self.index]
 
 class MCTS():
-    def __init__(self, timeLimit = None, explorationConstant = 1):
+    def __init__(self, timeLimit = None, explorationConstant = math.sqrt(2)):
         if timeLimit == None:
             raise ValueError("Need a time limit")
         else:
@@ -187,6 +229,7 @@ class MCTS():
 
     def search(self, features):
         self.root = MCTS_Node(copy.deepcopy(features), None)
+
         timeLimit = time.time() + self.timeLimit/1000
         while time.time() < timeLimit:
             self.dive()
@@ -196,7 +239,6 @@ class MCTS():
     def dive(self):
         node = self.root
         self.expand(node)
-
         while node.isTerminal(self.root.features.colour) is False:
             node.visits += 1
             if node.isFullyExpanded is True:
@@ -204,21 +246,17 @@ class MCTS():
                 if node.possMoves[index] not in node.children:
                     node.children[node.possMoves[index]] = node.doMove(node.possMoves[index], index)
                 node = node.children[node.possMoves[index]]
-
             else:
                 self.expand(node)
-                move = random.choice(node.possibleMoves())
-                node2 = node.doMove(move, None)
                 break
 
-        if node.isTerminal(self.root.features.colour) is True:
-            node2 = node
-
-        while node2.isTerminal(self.root.features.colour) == False:
-            move = random.choice(node2.possibleMoves())
-            node2 = node2.doMove(move, None)
-
-        reward = node2.getReward(self.root.features.colour)
+        node2 = node
+        if node2.isTerminal(self.root.features.colour) is True:
+            reward = node2.getReward(self.root, delay = 1)
+        else:
+            feature, delay = node2.features.simulation(self.root.features.colour)
+            node2 = MCTS_Node(feature, None)
+            reward = node2.getReward(self.root, delay)
         self.propogate(node, reward)
 
     def propogate(self, node, reward):
@@ -231,11 +269,20 @@ class MCTS():
         node.isFullyExpanded = True
 
     def getBestChild(self, node, explorationValue):
+        if explorationValue == 0:
+            print(self.root.features.colour)
+            print('a')
+            for i in range(len(node.childRewards)):
+                print(node.possMoves[i], node.childRewards[i], node.childVisits[i])
         values = node.childRewards / (1 + node.childVisits) + explorationValue * np.sqrt(np.log(node.visits)/(1 + node.childVisits))
         return np.argmax(values)
 
 def main():
     hey = Player(0)
+    hey.update(0, hey.action())
+    hey.update(0, hey.action())
+    hey.update(0, hey.action())
+    hey.update(0, hey.action())
     hey.update(0, hey.action())
 
 if __name__ == "__main__":
