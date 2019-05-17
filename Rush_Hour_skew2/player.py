@@ -153,16 +153,17 @@ class Search_Node:
             if colour != self.turn:
                 lst.append((self.features.score[colour][0]+ 2*self.features.score[colour][1], colour))
         colour = max(lst)[1]
+        print(colour)
         return (prior.manhat(colour) - self.manhat(colour)) + 9*(self.eat(prior)) + -1*(self.leave() - prior.leave())
 
     def total_four_five(self, prior):
-        return (prior.manhat() - self.manhat()) + 6*(self.eat(prior)) + 6*(self.leave() - prior.leave())
+        return (prior.manhat() - self.manhat()) + 8*(self.eat(prior)) + 4*(self.leave() - prior.leave())
 
     def total_six_seven(self, prior):
-        return (prior.manhat() - self.manhat()) + 6*(self.eat(prior)) + 6*(self.leave() - prior.leave())
+        return (prior.manhat() - self.manhat()) + 3*(self.eat(prior)) + 3*(self.leave() - prior.leave())
 
     def total_eight_nine(self, prior):
-        return (prior.manhat() - self.manhat()) + 6*(self.eat(prior)) + 6*(self.leave() - prior.leave())
+        return (prior.manhat() - self.manhat()) + 3*(self.eat(prior)) + 6*(self.leave() - prior.leave())
 
     def total_more_than_nine(self, prior):
         return (prior.manhat() - self.manhat()) + 6*(self.eat(prior)) + 12*(self.leave() - prior.leave())
@@ -207,8 +208,8 @@ class Search_Node:
         self.turn = prior.turn
         total = sum(prior.features.score[prior.turn])
         for i in [1,2]:
-            if prior.features.score[prior.turn] < prior.features.score[(prior.turn + i)%3]:
-                total -= 1
+            if sum(prior.features.score[prior.turn]) < sum(prior.features.score[(prior.turn + i)%3]):
+                return self.total_three(prior)
 
         if total <= 3:
             return self.total_three(prior)
@@ -270,7 +271,6 @@ class Minimax:
         state.get_children()
 
         for child in state.children:
-            if state == self.root:
             next_state = self._minimax(child, depth-1)
             next_state.depth = state.depth + .5
             if next_state == None:
