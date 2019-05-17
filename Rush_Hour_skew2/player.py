@@ -156,15 +156,9 @@ class Search_Node:
         return (prior.manhat(colour) - self.manhat(colour)) + 9*(self.eat(prior)) + -1*(self.leave() - prior.leave())
 
     def total_four_five(self, prior):
-        if prior.parent == None:
-            print(self.move, (prior.manhat() - self.manhat()), (self.eat(prior)), (self.leave() - prior.leave()))
-            print(self.features.state)
         return (prior.manhat() - self.manhat()) + 6*(self.eat(prior)) + 6*(self.leave() - prior.leave())
 
     def total_six_seven(self, prior):
-        if prior.parent == None:
-            print(self.move, (prior.manhat() - self.manhat()), (self.eat(prior)), (self.leave() - prior.leave()))
-            print(self.features.state)
         return (prior.manhat() - self.manhat()) + 6*(self.eat(prior)) + 6*(self.leave() - prior.leave())
 
     def total_eight_nine(self, prior):
@@ -277,7 +271,6 @@ class Minimax:
 
         for child in state.children:
             if state == self.root:
-                print(child.move)
             next_state = self._minimax(child, depth-1)
             next_state.depth = state.depth + .5
             if next_state == None:
@@ -351,9 +344,6 @@ class MCTS():
         node.to_mcts()
 
     def getBestChild(self, node, explorationValue):
-        # if explorationValue == 0:
-        #     for i in range(len(node.childRewards)):
-        #         print(node.children[i].move, node.childRewards[i], node.childVisits[i])
         values = node.childRewards / (1 + node.childVisits) + explorationValue * np.sqrt(np.log(node.visits)/(1 + node.childVisits))
         return np.argmax(values)
 
