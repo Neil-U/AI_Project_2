@@ -153,6 +153,8 @@ class Search_Node:
             if colour != self.turn:
                 lst.append((self.features.score[colour][0]+ 2*self.features.score[colour][1], colour))
         colour = max(lst)[1]
+        if prior.parent == None:
+            print(self.move, (prior.manhat(colour) - self.manhat(colour)), 9*(self.eat(prior)), -1*(self.leave() - prior.leave()))
         return (prior.manhat(colour) - self.manhat(colour)) + 9*(self.eat(prior)) + -1*(self.leave() - prior.leave())
 
     def total_four_five(self, prior):
@@ -207,7 +209,7 @@ class Search_Node:
         self.turn = prior.turn
         total = sum(prior.features.score[prior.turn])
         for i in [1,2]:
-            if sum(prior.features.score[prior.turn]) < sum(prior.features.score[(prior.turn + i)%3]):
+            if sum(prior.features.score[prior.turn]) < sum(prior.features.score[(prior.turn + i)%3]) and total <= 7:
                 return self.total_three(prior)
 
         if total <= 3:
