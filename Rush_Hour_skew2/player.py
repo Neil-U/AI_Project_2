@@ -153,7 +153,6 @@ class Search_Node:
             if colour != self.turn:
                 lst.append((self.features.score[colour][0]+ 2*self.features.score[colour][1], colour))
         colour = max(lst)[1]
-        print(colour)
         return (prior.manhat(colour) - self.manhat(colour)) + 9*(self.eat(prior)) + -1*(self.leave() - prior.leave())
 
     def total_four_five(self, prior):
