@@ -83,10 +83,11 @@ class Search_Node:
         self.depth = 1
         self.update_goal()
 
-    def is_terminal(self, colour):
+    def is_terminal(self, root):
+        colour = root.features.colour
         if len(self.features.state[colour]) == 0:
             return True
-        if self.parent and self.features.score[colour][1] > self.parent.features.score[colour][1]:
+        if self.features.score[colour][1] > root.features.score[colour][1]:
             return True
         return False
 
@@ -126,6 +127,8 @@ class Search_Node:
 
     def manhat(self, prior):
         dist = 0
+        if self.features.score[self.turn][0] == 0:
+            return 10
         for j in self.features.state[self.turn]:
             if self.turn == 0:
                 dist += 3 - j[0]
@@ -133,31 +136,38 @@ class Search_Node:
                 dist += 3 - j[1]
             if self.turn == 2:
                 dist += 3 - (-j[0]-j[1])
-        return dist/(len(self.features.state[self.turn]) + 1)
+        return dist/(self.features.score[self.turn][0])
 
-    def eat(self):
-        return (self.features.score[self.turn][0])
+    def eat(self, prior):
+        diff =  self.features.score[self.turn][1] - prior.features.score[self.turn][1]
+        return self.features.score[self.turn][0] + diff - prior.features.score[self.turn][0]
 
     def leave(self):
         return (self.features.score[self.turn][1])
 
     def total_less_than_three(self, prior):
-        return 1*(prior.manhat(prior) - self.manhat(prior)) + 12*(self.eat() - prior.eat()) + 0*(self.leave() - prior.leave())
+        return (prior.manhat(prior) - self.manhat(prior)) + 6*(self.eat(prior)) + 3*(self.leave() - prior.leave())
 
     def total_three(self, prior):
-        return 1*(prior.manhat(prior) - self.manhat(prior)) + 12*(self.eat() - prior.eat()) + 0*(self.leave() - prior.leave())
+        return (prior.manhat(prior) - self.manhat(prior)) + 9*(self.eat(prior)) + 3*(self.leave() - prior.leave())
 
     def total_four_five(self, prior):
-        return 4*(prior.manhat(prior) - self.manhat(prior)) + 4*(self.eat() - prior.eat()) + 12*(self.leave() - prior.leave())
+        if prior.parent == None:
+            print(self.move, (prior.manhat(prior) - self.manhat(prior)), (self.eat(prior)), (self.leave() - prior.leave()))
+            print(self.features.state)
+        return (prior.manhat(prior) - self.manhat(prior)) + 6*(self.eat(prior)) + 6*(self.leave() - prior.leave())
 
     def total_six_seven(self, prior):
-        return 6*(prior.manhat(prior) - self.manhat(prior)) + 2*(self.eat() - prior.eat()) + 12*(self.leave() - prior.leave())
+        if prior.parent == None:
+            print(self.move, (prior.manhat(prior) - self.manhat(prior)), (self.eat(prior)), (self.leave() - prior.leave()))
+            print(self.features.state)
+        return (prior.manhat(prior) - self.manhat(prior)) + 4*(self.eat(prior)) + 12*(self.leave() - prior.leave())
 
     def total_eight_nine(self, prior):
-        return 1*(prior.manhat(prior) - self.manhat(prior)) + 0*(self.eat() - prior.eat()) + 4*(self.leave() - prior.leave())
+        return (prior.manhat(prior) - self.manhat(prior)) + 4*(self.eat(prior)) + 6*(self.leave() - prior.leave())
 
     def total_more_than_nine(self, prior):
-        return 1*(prior.manhat(prior) - self.manhat(prior)) + 0*(self.eat() - prior.eat()) + 4*(self.leave() - prior.leave())
+        return (prior.manhat(prior) - self.manhat(prior)) + 0*(self.eat(prior)) + 12*(self.leave() - prior.leave())
 
     def to_mcts(self):
         self.isFullyExpanded = True
@@ -176,16 +186,16 @@ class Search_Node:
                 return 6/delay
         return -6/delay
 
-    def simulation(self, colour):
+    def simulation(self, root):
         delay = 1
-        while self.end_simulation(colour) is False:
+        while self.end_simulation(root) is False:
             move =  random.choice(self.poss_moves())
             self = Search_Node(self.features.update(move), self, move)
             delay += 1
         return self, delay
 
-    def end_simulation(self, colour):
-        if self.is_terminal(colour):
+    def end_simulation(self, root):
+        if self.is_terminal(root):
             return True
         return False
 
@@ -195,43 +205,61 @@ class Search_Node:
     def addVisit(self):
         self.mcts_parent.childVisits[self.index] += 1
 
-    def choose_function(self, prior):
+    def choose_function(self, prior, colour):
         self.turn = prior.turn
         total = sum(prior.features.score[prior.turn])
+        for i in [1,2]:
+            if prior.features.score[prior.turn] < prior.features.score[(prior.turn + i)%3]:
+                total -= 1
+
         if total <= 2:
             return self.total_less_than_three(prior)
         elif total == 3:
             return self.total_three(prior)
         elif 4 <= total <= 5:
             return self.total_four_five(prior)
-        elif 6 <= total < 7:
+        elif 6 <= total <= 7:
             return self.total_six_seven(prior)
         elif 8 <= total <= 9:
             return self.total_eight_nine(prior)
         else:
             return self.total_more_than_nine(prior)
 
+    def choose_depth(self):
+        on_board = 0
+
+        for colour in self.features.score:
+            on_board += self.features.score[colour][0]
+
+        if 3 <= on_board <= 12:
+            return 3
+        elif 1 <= on_board <= 3:
+            return 6
+        else:
+            return 9
+
+    def paranoid_addition(self, state, colour):
+        if state.features.colour != colour:
+            if sum(self.features.score[colour]) < sum(state.features.score[colour]):
+                return 2
+        return 0
+
+
 class Minimax:
-    def __init__(self, features, max_depth=3):
+    def __init__(self, features):
         self.features = features
-        self.max_depth = max_depth
         self.root = Search_Node(self.features)
 
     def find(self):
         state = self.root
+        self.max_depth = state.choose_depth()
         future = self._minimax(state, self.max_depth)
-
-        if future == state:
-            return future.move
-
-        while future.parent != state:
-            future = future.parent
 
         return future.move
 
     def _minimax(self, state, depth):
 
-        if state.is_terminal(self.root.features.colour):
+        if state.is_terminal(self.root):
             state.turn = (state.turn - 1) % 3
             state.update_goal()
             return state
@@ -246,11 +274,14 @@ class Minimax:
         state.get_children()
 
         for child in state.children:
+            if state == self.root:
+                print(child.move)
             next_state = self._minimax(child, depth-1)
-            next_state.depth = state.depth + .25
+            next_state.depth = state.depth + .5
             if next_state == None:
                 continue
-            value = next_state.choose_function(state)/next_state.depth
+            value = next_state.choose_function(state, self.root.features.colour)/next_state.depth
+            value += next_state.paranoid_addition(state, self.root.features.colour)
             if (value > best_value):
                 best_states = [next_state]
                 best_value = value
@@ -264,6 +295,9 @@ class Minimax:
             mcts = MCTS(1000)
             state.children = best_states
             best_state = mcts.search(state)
+
+        if depth != self.max_depth:
+            best_state.move = state.move
 
         best_state.turn = (best_state.turn - 1) % 3
         best_state.update_goal()
@@ -287,7 +321,7 @@ class MCTS():
 
     def dive(self):
         node = self.root
-        while node.is_terminal(self.root.features.colour) is False:
+        while node.is_terminal(self.root) is False:
             if node.isFullyExpanded is True:
                 node.visits += 1
                 index = self.getBestChild(node, self.explorationConstant)
@@ -297,10 +331,10 @@ class MCTS():
                 break
 
         node2 = node
-        if node2.is_terminal(self.root.features.colour) is True:
+        if node2.is_terminal(self.root) is True:
             reward = node2.getReward(self.root, delay = 1)
         else:
-            feature, delay = node2.simulation(self.root.features.colour)
+            feature, delay = node2.simulation(self.root)
             reward = node2.getReward(self.root, delay)
         self.propogate(node, reward)
 
