@@ -159,7 +159,7 @@ class Search_Node:
         return (prior.manhat() - self.manhat()) + 3*(self.eat(prior)) + 2*(self.leave() - prior.leave())
 
     def total_six_seven(self, prior):
-        return (prior.manhat() - self.manhat()) + 3*(self.eat(prior)) + 3*(self.leave() - prior.leave())
+        return (prior.manhat() - self.manhat()) + 3*(self.eat(prior)) + 4*(self.leave() - prior.leave())
 
     def total_eight_nine(self, prior):
         return (prior.manhat() - self.manhat()) + 3*(self.eat(prior)) + 6*(self.leave() - prior.leave())
