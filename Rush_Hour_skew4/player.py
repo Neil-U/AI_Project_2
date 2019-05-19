@@ -156,10 +156,10 @@ class Search_Node:
         return (prior.manhat(colour) - self.manhat(colour)) + 9*(self.eat(prior)) + -1*(self.leave() - prior.leave())
 
     def total_four_five(self, prior):
-        return (prior.manhat() - self.manhat()) + 3*(self.eat(prior)) + 2*(self.leave() - prior.leave())
+        return 2*(prior.manhat() - self.manhat()) + 4*(self.eat(prior)) + 2*(self.leave() - prior.leave())
 
     def total_six_seven(self, prior):
-        return (prior.manhat() - self.manhat()) + 3*(self.eat(prior)) + 4*(self.leave() - prior.leave())
+        return (prior.manhat() - self.manhat()) + 4*(self.eat(prior)) + 4*(self.leave() - prior.leave())
 
     def total_eight_nine(self, prior):
         return (prior.manhat() - self.manhat()) + 3*(self.eat(prior)) + 6*(self.leave() - prior.leave())
@@ -206,6 +206,9 @@ class Search_Node:
     def choose_function(self, prior, colour):
         self.turn = prior.turn
         total = sum(prior.features.score[prior.turn])
+        if prior.features.score[prior.turn][1] == 3 and prior.features.score[prior.turn][0] > 1:
+            return self.total_more_than_nine(prior)
+
         for i in [1,2]:
             if sum(prior.features.score[prior.turn]) < sum(prior.features.score[(prior.turn + i)%3]) and total <= 7:
                 return self.total_three(prior)
