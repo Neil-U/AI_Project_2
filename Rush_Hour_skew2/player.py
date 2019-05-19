@@ -340,8 +340,6 @@ class Search_Node:
         return (self.manhat_diff(prior) + (self.eat_diff(prior))
                                                 + 6 * (self.leave_diff(prior)))
 
-
-
     def choose_function(self, prior, colour):
         """
         choose_function determines the evaluation function to apply
@@ -529,7 +527,7 @@ class MaxN:
 
         return best_state
 
-class MCTS():
+class MCTS:
     """
     A Monte Carlo Tree Seach, used to aid the decision making process of the
     MaxN tree algorithm. Models full games from selected search_node children
