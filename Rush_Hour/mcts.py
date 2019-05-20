@@ -1,118 +1,89 @@
-import time
 import math
-import random
+import time
+import numpy as np
 
-class MCTS_Node:
-	def __init__(self, features, parent=None):
-		self.features = features
-		self.parent = parent
-		self.isTerminal = self.isTerminal()
-		self.isFullyExpanded = self.isTerminal
-		self.numVisits = 0
-		self.totalReward = 0
-		self.children = {}
+class MCTS:
+    """
+    A Monte Carlo Tree Seach, used to aid the decision making process of the
+    MaxN tree algorithm. Models full games from selected search_node children
+    using the Upper Confidence Bound applied to trees
+    """
+    def __init__(self, timeLimit = None, explorationConstant = math.sqrt(2)):
+        """
+        The MCTS is initialised with a time limit to play out through and an
+        exploration constant determining which child is searched next
+        """
+        self.timeLimit = timeLimit
+        self.explorationConstant = explorationConstant
 
-	def isTerminal(self):
-    	for c in self.features.score.keys():
-            if self.features.score[c][1] == 4:
-                return True
-        return False
+    def search(self, state):
+        """
+        search sets a given input 'state' as the root of the tree and returns
+        the best move from this state
+        """
+        state.to_mcts()
+        state.mcts_parent = None
+        self.root = state
 
-    def possibleMoves(self):
-		poss_moves = []
-        occupied = set().union(*self.features.state.values())
+        timeLimit = time.time() + self.timeLimit/1000
+        while time.time() < timeLimit:
+            self.dive()
 
-        for piece in self.features.state[self.features.colour]:
-            if piece in self.goal:
-                poss_moves.append(("EXIT", piece))
-                continue
+        # set explorationvalue as 0 as want to exploit the best move
+        bestIndex = self.getBestChild(self.root, 0)
+        return self.root.children[bestIndex]
 
-            for i,j in [(-1,0),(-1,1), (0,-1), (0,1), (1,0), (1,-1)]:
-                new = (piece[0]+i,piece[1]+j)
-                new_jump = (new[0] + i, new[1] + j)
+    def dive(self):
+        """
+        dive does a deep dive, selecting moves depending on the exploration
+        constant until a terminal state is reached
+        """
 
-                if new in BOARD:
-                    if new not in occupied:
-                        poss_moves.append(("MOVE", (piece, new)))
-                    elif new_jump in BOARD and new_jump not in occupied:
-                        poss_moves.append(("JUMP", (piece, new_jump)))
+        # we search through the current tree until an unvisited node is reached
+        node = self.root
+        while node.is_terminal(self.root) is False:
+            if node.isFullyExpanded is True:
+                node.visits += 1
+                index = self.getBestChild(node, self.explorationConstant)
+                node = node.children[index]
+            else:
+                # we expand the first univsited node found
+                self.expand(node)
+                break
 
-        if not poss_moves:
-            poss_moves.append(("PASS", None))
+        # we simulate a game from the newly expanded node and propogate
+        # the reward from this poisition
+        node2 = node
+        if node2.is_terminal(self.root) is True:
+            reward = node2.getReward(self.root, delay = 1)
+        else:
+            feature, delay = node2.simulation(self.root)
+            reward = node2.getReward(self.root, delay)
+        self.propogate(node, reward)
 
-        return poss_moves
-
-    def getReward(self):
-    	for colour in self.features.score:
-            if self.features.score[colour][1] == 4:
-                if colour == self.features.colour:
-                    return 1
-        return 0
-
-class mcts:
-	def __init__(self, timeLimit = None, explorationConstant = math.sqrt(2)):
-		if timeLimit == None:
-			raise ValueError("Need a time limit")
-		else:
-			self.timeLimit = timeLimit
-			self.explorationConstant = explorationConstant
-
-	def search(self, features):
-		self.root = MCTS_Node(features)
-
-		timeLimit = time.time() + self.timeLimit/1000
-		while time.time() < timeLimit:
-			self.dive()
-
-		# 0 for exploitation constant as no exploration value
-		bestChild = self.getBestChild(self.root, 0)
-		for move, node in self.root.children.items():
-			if node is bestChild:
-				return move
-
-	def dive(self):
-		node = self.root
-		while node.isTerminal == False:
-			if node.isFullyExpanded:
-				node = self.getBestChild(node, self.explorationConstant)
-			else:
-				node = self.expand(node)
-				break
-
-		node2 = node
-		while node.isTerminal == False:
-			move = random.choice(node.possibleMoves())
-			node2 = node2.doMove(move)
-		reward = node2.getReward()
-
-		self.propogate(node, reward)
-
-	def propogate(self, node, reward):
-		while node is not None:
-            node.numVisits += 1
-            node.totalReward += reward
-            node = node.parent
+    def propogate(self, node, reward):
+        """
+        propogate adds the values and changes the rewards of the states
+        that led to the terminal state found
+        """
+        while node.mcts_parent is not None:
+            node.addVisit()
+            node.changeReward(reward)
+            node = node.mcts_parent
 
     def expand(self, node):
-    	moves = node.possibleMoves()
-    	for move in moves:
-    		if move not in node.children.keys():
-    			new = MCTS_Node(node.features.update(move), node)
-    			node.children[move] = new
-    			if len(moves) == len(node.children):
-    				node.isFullyExpanded = True
-    			return new
+        """
+        expand converts the current node into one for the MCTS tree and
+        expands it
+        """
+        node.get_children()
+        node.to_mcts()
 
-    def getBestChild(self, node, exploration):
-    	bestValue = float("-inf")
-    	bestNodes = []
-    	for child in node.children.values():
-    		value = child.totalReward / child.numVisits + explorationValue * math.sqrt(
-                2 * math.log(node.numVisits) / child.numVisits)
-            if value > bestValue:
-            	bestValue = value
-            	bestNodes = [child]
-            elif value == bestValue:
-            	bestNodes.append(child)
-        return random.choice(bestNodes)
-
+    def getBestChild(self, node, explorationValue):
+        """
+        returns the index of the best child depending on the
+        exploration value provided
+        """
+        values = node.childRewards / ((1 + node.childVisits) + explorationValue
+                        * np.sqrt(np.log(node.visits)/(1 + node.childVisits)))
+        return np.argmax(values)

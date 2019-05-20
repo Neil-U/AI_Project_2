@@ -19,6 +19,7 @@ BLUE = 2
 
 class Player:
     def __init__(self, colour):
+        
         self.features = Features(RED)
 
     def action(self):

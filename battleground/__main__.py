@@ -1,5 +1,5 @@
 """
-Client program to instantiate a player class and 
+Client program to instantiate a player class and
 conduct a game of Chexers through the online battleground
 """
 
@@ -8,10 +8,13 @@ from referee.game import Chexers
 from referee.player import PlayerWrapper, set_space_line
 
 from battleground.options import get_options
-from battleground.protocol import Connection as Server, ConnectingException 
+from battleground.protocol import Connection as Server, ConnectingException
 from battleground.protocol import MessageType as M, ProtocolException
 from battleground.protocol import DisconnectException
 
+wins = 0
+games = 0
+errors = 0
 
 def main():
     # Parse command-line options into a namespace for use throughout this
@@ -21,45 +24,54 @@ def main():
     # Create a star-log for controlling the format of output from within this
     # program
     out = StarLog(options.verbosity)
-    out.comment("all messages printed by the client after this begin with a *")
+    out.comment("all messages printed by the client after this befgin with a *")
     out.comment("(any other lines of output must be from your Player class).")
     out.comment()
-    
+
     try:
         # Import player classes
         player = PlayerWrapper("your player", options.player_loc, options, out)
-    
+
         # We'll start measuring space usage from now, after all
         # library imports should be finished:
         set_space_line()
 
-        # Play the game, catching any errors and displaying them to the 
+        # Play the game, catching any errors and displaying them to the
         # user:
-        connect_and_play(player, options, out)
+        for i in range(100):
+            connect_and_play(player, options, out)
+        print("wins: {}, games: {}, errors: {}".format(wins, games, errors))
 
     except KeyboardInterrupt:
         print() # (end the line)
         out.comment("bye!")
+        print("wins: {}, games: {}, errors: {}".format(wins, games, errors))
     except ConnectingException as e:
         out.print("error connecting to server")
+        print("wins: {}, games: {}, errors: {}".format(wins, games, errors))
         out.comment(e)
     except DisconnectException:
         out.print("connection lost")
+        print("wins: {}, games: {}, errors: {}".format(wins, games, errors))
     except ProtocolException as e:
         out.print("protocol error!")
+        print("wins: {}, games: {}, errors: {}".format(wins, games, errors))
         out.comment(e)
     # If it's another kind of error then it might be coming from the player
     # itself? Then, a traceback will be more helpful.
 
 
 def connect_and_play(player, options, out):
+    global games
+    global wins
+    global errors
     # SET UP SERVER CONNECTION
     out.section("connecting to battleground")
     # attempt to connect to the server...
     out.comment("attempting to connect to the server...")
     server = Server.from_address(options.host, options.port)
     out.comment("connection established!")
-    
+
     # FIND A GAME
     # we would like to play a game!
     if options.channel:
@@ -102,7 +114,7 @@ def connect_and_play(player, options, out):
     player.init(initmsg['colour'])
     out.comment("ready to play!")
     server.send(M.OKAY)
-    
+
     players = format_players(gamemsg, player.colour)
 
     # Display the initial state of the game.
@@ -120,7 +132,7 @@ def connect_and_play(player, options, out):
             out.comment("displaying game info:")
             out.comments(players, pad=1)
             out.comments(game, pad=1)
-            
+
             # decide on action and submit it to server
             action = player.action()
             server.send(M.ACTN, action=action)
@@ -138,17 +150,23 @@ def connect_and_play(player, options, out):
             player.update(colour, action)
             # then notify server we are ready to continue:
             server.send(M.OKAY)
-        
+
         elif msg['mtype'] is M.OVER:
             # the game ended! either legitmately or through some
             # game error (e.g. non-allowed move by us or opponent)
             out.section("game over!")
             out.print(msg['result'])
+            games += 1
+            if player.colour in msg['result'].lower():
+                wins += 1
+            print("wins: {}, games: {}, errors: {}".format(wins, games, errors))
             break
-        
+
         elif msg['mtype'] is M.ERRO:
             out.section("connection error")
             out.print(msg['reason'])
+            games += 1
+            errors += 1
             break
 
 

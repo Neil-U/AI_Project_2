@@ -1,3 +1,26 @@
+import numpy as np
+import random
+
+ # # #
+ # Here we define a board to contain all possible destinations
+ # This ensures that the pieces never move to a piece outside the bounds
+
+BOARD = set()
+for i in range(-3, 1):
+    for j in range(-3-i, 4):
+        BOARD.add((i, j))
+
+for i in range(1, 4):
+    for j in range(-3, 4-i):
+        BOARD.add((i, j))
+
+# As every game is conducted in the same order, i.e. with red starting, we
+# each piece has an associated number determined by their order in the game
+
+RED = 0
+GREEN = 1
+BLUE = 2
+
 class Search_Node:
     """
     The Search_Node represents a node in the MaxN search tree. It is later
@@ -271,8 +294,9 @@ class Search_Node:
         """
         self.isFullyExpanded = True
         self.visits = np.zeros(len(self.children), dtype=np.float32)
-        # the data for its children are stored in the parent to efficiently
-        # calculate data as well as reduce memory usage
+
+        # the data for its children are stored in the parent using numpy arrays
+        # to efficiently hold information as well as reduce memory usage
         self.childVisits = np.zeros(len(self.children), dtype=np.float32)
         self.childRewards = np.zeros(len(self.children), dtype=np.float32)
         index = 0
@@ -307,6 +331,9 @@ class Search_Node:
         """
         simulation simulates play until a terminal state is reached
         """
+
+        # we introduce a delay factor to prioritise moves that reach
+        # terminal state quicker
         delay = 1
         while self.is_terminal(root) is False:
             move =  random.choice(self.poss_moves())
@@ -317,12 +344,12 @@ class Search_Node:
 
     def changeReward(self, value):
         """
-        changeReward is a setter for the reward of a node
+        changeReward is a setter for the reward of a given node
         """
         self.mcts_parent.childRewards[self.index] += value
 
     def addVisit(self):
         """
-        addVisit is an incrementer for the visits of a
+        addVisit is an incrementer for the visits of a node
         """
         self.mcts_parent.childVisits[self.index] += 1
