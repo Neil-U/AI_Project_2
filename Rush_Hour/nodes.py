@@ -7,11 +7,11 @@ import random
 
 BOARD = set()
 for i in range(-3, 1):
-    for j in range(-3-i, 4):
+    for j in range(-3 - i, 4):
         BOARD.add((i, j))
 
 for i in range(1, 4):
-    for j in range(-3, 4-i):
+    for j in range(-3, 4 - i):
         BOARD.add((i, j))
 
 # As every game is conducted in the same order, i.e. with red starting, we
@@ -312,9 +312,11 @@ class Search_Node:
         state but one where someone exits to maximise no. of simulations.
         """
         for colour in self.features.score:
-            if (self.features.score[colour][1] >
-                                        root.features.score[colour][1]):
+            if (self.features.score[colour][1] == 4 or
+                        self.features.score[colour][1] >
+                                    root.features.score[colour][1] + 1):
                 return True
+
         if len(self.features.state[root.features.colour]) == 0:
             return True
         return False
@@ -324,8 +326,8 @@ class Search_Node:
         returns the reward of a state
         """
         if self.features.score[root.features.colour][1] == 4:
-                return 6/delay
-        return -6/delay
+                return 6 / delay
+        return -6 / delay
 
     def simulation(self, root):
         """

@@ -57,7 +57,7 @@ class MCTS:
         if node2.is_terminal(self.root) is True:
             reward = node2.getReward(self.root, delay = 1)
         else:
-            feature, delay = node2.simulation(self.root)
+            node2, delay = node2.simulation(self.root)
             reward = node2.getReward(self.root, delay)
         self.propogate(node, reward)
 
