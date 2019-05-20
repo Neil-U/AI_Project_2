@@ -19,7 +19,7 @@ BLUE = 2
 
 class Player:
     def __init__(self, colour):
-        
+
         self.features = Features(RED)
 
     def action(self):
@@ -205,7 +205,7 @@ class Search_Node:
             return self.total_more_than_five()
 
 class Minimax:
-    def __init__(self, features, max_depth=3):
+    def __init__(self, features, max_depth=1):
         self.features = features
         self.max_depth = max_depth
 
