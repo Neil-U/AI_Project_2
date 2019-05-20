@@ -1,1 +1,1 @@
-from Rush_Hour.Rush_Hour_skew1.player import Player as Player
+from Rush_Hour.Rush_Hour_greedy.player import Player as Player

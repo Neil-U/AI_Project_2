@@ -1,3 +1,10 @@
+"""
+The mcts module ontains the MCTS class that operates the MCTS algorithm for
+the program
+
+Authors: Neil Umoh and Toai Trinh
+"""
+
 import math
 import time
 import numpy as np

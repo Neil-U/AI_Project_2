@@ -1,7 +1,13 @@
+"""
+The maxn module ontains the MaxN class that operates the MaxN algorithm for
+the program
+
+Authors: Neil Umoh and Toai Trinh
+"""
+
 from Rush_Hour.mcts import MCTS
 from Rush_Hour.nodes import Search_Node
 import random
-
 class MaxN:
     """
     A MaxN tree that can conduct a MaxN search to find a move for
@@ -33,7 +39,7 @@ class MaxN:
         MaxN uses the MaxN algorithm to find the best move for a search_node
         to take based on the evaluation functions in Search_Node
         """
-        if depth == 0:
+        if depth == 0 or state.features.score[self.root.features.colour] == 4:
             return state
 
         best_states = [state]
@@ -42,6 +48,9 @@ class MaxN:
 
         # iterate through all possible children
         for child in state.children:
+
+            if child.features.score[self.root.features.colour] == 4:
+                return child
 
             # find the optimal configuration for the next child
             next_state = self._MaxN(child, depth-1)

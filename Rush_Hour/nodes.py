@@ -1,3 +1,10 @@
+"""
+The nodes module ontains the Search_Node class which represents an instance
+in the tree of either the MaxN or Monte Carlo Tree Search algorithms.
+
+Authors: Neil Umoh and Toai Trinh
+"""
+
 import numpy as np
 import random
 
@@ -138,7 +145,7 @@ class Search_Node:
         # consider the positions of all pieces of both players
         for opp_x, opp_y in self.features.state[player]:
             for my_x, my_y in self.features.state[self.features.colour]:
-                dist += abs(my_x - opp_x) + abs(my_y - opp_y)
+                dist += abs(my_x - opp_x - 1) + abs(my_y - opp_y - 1)
 
         return dist/((self.features.score[self.features.colour][0]) *
                                             (self.features.score[player][0]))
@@ -190,8 +197,8 @@ class Search_Node:
                                 + 3 * self.features.score[colour][1], colour))
         colour = max(lst)[1]
 
-        return self.attack_diff(prior, colour) + (3 * (self.eat_diff(prior))
-                                            + -1 * (self.leave_diff(prior)))
+        return (0.5 * self.attack_diff(prior, colour) +
+                    3 * (self.eat_diff(prior)) + -1 * (self.leave_diff(prior)))
 
     def total_four_five(self, prior):
         """
@@ -211,16 +218,16 @@ class Search_Node:
         """
         total_eight_nine is called if the player has eight or nine toal pieces
         """
-        return (self.manhat_diff(prior) + 2 * (self.eat_diff(prior))
-                                                + 8 * (self.leave_diff(prior)))
+        return 2 * (self.manhat_diff(prior) + 2 * (self.eat_diff(prior))
+                                                 + 8 * (self.leave_diff(prior)))
 
     def total_exit(self, prior):
         """
         total_exit is called if the player is in a prime position to win the
         game or has enough pieces such that its opponents cannot win
         """
-        return (self.manhat_diff(prior) + (self.eat_diff(prior))
-                                                + 8 * (self.leave_diff(prior)))
+        return 2 * (self.manhat_diff(prior) + (self.eat_diff(prior))
+                                                + 10 * (self.leave_diff(prior)))
 
 
 
@@ -239,10 +246,13 @@ class Search_Node:
             prior.features.score[colour][0] > 1) or total > 9:
             return self.total_exit(prior)
 
-        if total <= 3:
-            return self.total_attack(prior)
+        # consider the case when the current player is severely behind
+        for succ in [1,2]:
+            if (prior.features.score[(colour + succ) % 3][1] == 3 +
+                prior.features.score[(colour + succ) % 3][0]) or total <= 3:
+                    return self.total_attack(prior)
 
-        elif 4 <= total <= 5:
+        if 4 <= total <= 5:
             return self.total_four_five(prior)
 
         elif 6 <= total <= 7:
@@ -261,10 +271,10 @@ class Search_Node:
         for colour in self.features.score:
             on_board += self.features.score[colour][0]
 
-        if 8 <= on_board <= 12:
+        if 9 <= on_board <= 12:
             return 3
 
-        elif 5 <= on_board < 8:
+        elif 5 <= on_board <= 8:
             return 4
 
         elif on_board < 5:
@@ -309,14 +319,13 @@ class Search_Node:
         """
         is_terminal returns a boolean of whether or not the current state
         is a terminal state. In our case, does not go to an actual terminal
-        state but one where someone exits to maximise no. of simulations.
+        state but one where we exit to maximise no. of simulations.
         """
         for colour in self.features.score:
-            if (self.features.score[colour][1] == 4 or
-                        self.features.score[colour][1] >
-                                    root.features.score[colour][1]):
+            if self.features.score[colour][1] == 4:
                 return True
-
+        if self.features.score[colour][1] > self.features.score[colour][1]:
+            return True
         if len(self.features.state[root.features.colour]) == 0:
             return True
         return False

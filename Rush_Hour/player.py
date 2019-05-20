@@ -6,6 +6,9 @@ This solution uses a general maxn structure to evaluate the best move
 for a player to take in the game Chexers. It also employs a Monte Carlo Tree
 Search to determine the best move when the MaxN search is indeterminate.
 
+The player module interacts directly with the referee module. It contains the
+Player and Feature classes.
+
 Authors: Neil Umoh and Toai Trinh
 """
 
