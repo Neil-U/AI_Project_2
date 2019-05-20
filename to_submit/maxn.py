@@ -1,5 +1,5 @@
-from mcts import MCTS
-from nodes import Search_Node
+from .mcts import MCTS
+from .nodes import Search_Node
 
 class MaxN:
     """

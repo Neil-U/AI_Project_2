@@ -15,7 +15,7 @@ import random
 import numpy as np
 import math
 import time
-from maxn import MaxN
+from .maxn import MaxN
 
  # # #
  # Here we define a board to contain all possible destinations

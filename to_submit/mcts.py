@@ -1,3 +1,5 @@
+import math
+
 class MCTS():
     """
     A Monte Carlo Tree Seach, used to aid the decision making process of the
